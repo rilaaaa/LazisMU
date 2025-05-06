@@ -54,12 +54,15 @@ export async function deleteJurnal(id: number) {
 }
 
 export type MuzzakiJurnalUploadData = {
-    attachment_name: string;
-    attachment_base64: string;
-}
+    attachment_name: string
+    attachment_base64: string
+    jenisJurnal: string
+  }
+  
 
-export async function uploadJurnal(data: MuzzakiJurnalUploadData): Promise<boolean> {
+  export async function uploadJurnal(data: MuzzakiJurnalUploadData): Promise<boolean> {
     try {
+        console.log(data)
         const res = await fetch(API_HOST + '/api/jurnal', {
             method: 'POST',
             headers: {
@@ -68,7 +71,10 @@ export async function uploadJurnal(data: MuzzakiJurnalUploadData): Promise<boole
             body: JSON.stringify(data),
         });
 
-        const res_data = await res.json();
+        const text = await res.text();
+        console.log('Upload response:', text);
+
+        const res_data = JSON.parse(text);
 
         if (res_data.status === 'success') {
             return true;
@@ -76,8 +82,7 @@ export async function uploadJurnal(data: MuzzakiJurnalUploadData): Promise<boole
 
         return false;
     } catch (err) {
-        console.error(err);
-
+        console.error('Upload error:', err);
         return false;
     }
 }

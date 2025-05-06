@@ -22,32 +22,29 @@ function Card({children, className}: {children: React.ReactNode, className?: str
 
 function BadgeCard({ badge }: BadgeCardProps) {
   return (
-    <Card className="p-4 sm:p-6 w-full">
-      <div className="flex items-start justify-between mb-2 sm:mb-4">
-        <div className="flex items-center justify-center">
-          <div className="relative">
-            <div className="flex items-center justify-center">
-              <Image 
-                src={badge.image} 
-                alt={`${badge.type} badge`} 
-                width={50} 
-                height={50}
-                className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20"
-              />
-            </div>
+    <Card className="p-4 sm:p-6 w-full min-h-[220px]">
+      <div className="flex flex-col justify-between h-full">
+        <div className="flex flex-col items-center mb-4 space-y-2">
+          <Image 
+            src={badge.image} 
+            alt={`${badge.type} badge`}
+            width={50} 
+            height={50}
+            className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20"
+          />
+          <div className="text-sm text-gray-600">{badge.type}</div>
+        </div>
+        <div className="flex flex-col items-center">
+          <div className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold text-gray-700">
+            {badge.count}
           </div>
+          <div className="text-xs sm:text-sm text-gray-500">Jumlah muzakki</div>
         </div>
-        <div className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold text-gray-600">
-          {badge.count}
-        </div>
-      </div>
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-gray-500 text-xs sm:text-sm">
-        <span className="mb-1 sm:mb-0">{badge.type}</span>
-        <span className="hidden sm:inline">Jumlah muzakki</span>
       </div>
     </Card>
-  )
+  );
 }
+
 
 export default function LoyaltyBadges({ muzakkiData }: LoyaltyBadgesProps) {
   const loyaltyBadges: Badge[] = useMemo(() => {
@@ -61,6 +58,10 @@ export default function LoyaltyBadges({ muzakkiData }: LoyaltyBadgesProps) {
           return muzakkiData.filter(m => m.donorType === 'Kecil Sering').length;
         case 'Besar Sering':
           return muzakkiData.filter(m => m.donorType === 'Besar Sering').length;
+        case 'Momentum':
+          return muzakkiData.filter(m => m.donorType === 'Momentum').length;
+        case 'Calon':
+          return muzakkiData.filter(m => m.donorType === 'Calon').length;
         default:
           return 0;
       }
@@ -71,13 +72,15 @@ export default function LoyaltyBadges({ muzakkiData }: LoyaltyBadgesProps) {
       { type: 'Besar Jarang', count: calculateBadgeCount('Besar Jarang'), image: '/icon/regular.svg' },
       { type: 'Kecil Sering', count: calculateBadgeCount('Kecil Sering'), image: '/icon/generous.svg' },
       { type: 'Besar Sering', count: calculateBadgeCount('Besar Sering'), image: '/icon/major.svg' },
+      { type: 'Momentum', count: calculateBadgeCount('Momentum'), image: '/icon/momentum.jpg' },
+      { type: 'Calon', count: calculateBadgeCount('Calon'), image: '/icon/calon.jpg' },
     ];
   }, [muzakkiData]);
 
   return (
     <section className="mb-6">
       <h2 className="text-lg font-medium mb-4">Loyalty Badges</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
         {loyaltyBadges.map((badge) => (
           <BadgeCard key={badge.type} badge={badge} />
         ))}

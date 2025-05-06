@@ -13,6 +13,9 @@ export function FileUploadModal({ isOpen, onClose, onUploadSuccess }: FileUpload
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [fileName, setFileName] = useState<string>('')
   const [isUploading, setIsUploading] = useState(false)
+  const [kategori, setKategori] = useState('')
+
+  const jenisJurnal = kategori === 'penyaluran' ? 'penyaluran' : kategori === 'perhimpunan' ? 'perhimpunan' : ''
 
   const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -23,7 +26,7 @@ export function FileUploadModal({ isOpen, onClose, onUploadSuccess }: FileUpload
   }, [])
 
   const handleImport = useCallback(async () => {
-    if (!selectedFile) return
+    if (!selectedFile || !jenisJurnal) return
 
     setIsUploading(true)
     try {
@@ -31,10 +34,11 @@ export function FileUploadModal({ isOpen, onClose, onUploadSuccess }: FileUpload
       const data: MuzzakiJurnalUploadData = {
         attachment_name: fileName,
         attachment_base64: base64String,
+        jenisJurnal :kategori,
       }
 
       const res = await uploadJurnal(data)
-      
+
       if (res) {
         toast({
           title: 'Upload successful',
@@ -59,7 +63,7 @@ export function FileUploadModal({ isOpen, onClose, onUploadSuccess }: FileUpload
     } finally {
       setIsUploading(false)
     }
-  }, [selectedFile, fileName, onClose, onUploadSuccess])
+  }, [selectedFile, fileName, jenisJurnal, onClose, onUploadSuccess])
 
   const handleCancelFileSelection = useCallback(() => {
     setSelectedFile(null)
@@ -98,6 +102,7 @@ export function FileUploadModal({ isOpen, onClose, onUploadSuccess }: FileUpload
               </Button>
             )}
           </div>
+
           {selectedFile && (
             <Input
               type="text"
@@ -107,14 +112,40 @@ export function FileUploadModal({ isOpen, onClose, onUploadSuccess }: FileUpload
               placeholder="File name"
             />
           )}
+
+          {/* Pilihan Kategori */}
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium">Kategori</span>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="kategori"
+                value="perhimpunan"
+                checked={kategori === 'perhimpunan'}
+                onChange={() => setKategori('perhimpunan')}
+              />
+              Perhimpunan
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="kategori"
+                value="penyaluran"
+                checked={kategori === 'penyaluran'}
+                onChange={() => setKategori('penyaluran')}
+              />
+              Penyaluran
+            </label>
+          </div>
         </div>
+
         <div className="flex flex-col sm:flex-row justify-end gap-4 mt-4">
           <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
             Cancel
           </Button>
-          <Button 
-            onClick={handleImport} 
-            disabled={!selectedFile || isUploading}
+          <Button
+            onClick={handleImport}
+            disabled={!selectedFile || isUploading || !kategori}
             className="w-full sm:w-auto"
           >
             {isUploading ? 'Uploading...' : 'Import'}
@@ -138,5 +169,4 @@ async function fileToBase64(file: File): Promise<string> {
   })
 }
 
-export default FileUploadModal;
-
+export default FileUploadModal

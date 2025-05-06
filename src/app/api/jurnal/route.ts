@@ -58,7 +58,7 @@ export async function POST(
     request: Request,
 ) {
     const body = await request.json();
-    const { attachment_name, attachment_base64 } = body;
+    const { attachment_name, attachment_base64, jenisJurnal } = body;
     let exceldata;
 
     try {
@@ -91,62 +91,87 @@ export async function POST(
     try {
         const worksheet = exceldata.worksheets[0];
         const data = worksheet.getSheetValues();
-
-        const expected_headers = ['tanggal', 'tahun', 'zis', 'via', 'sumber dana', 'nama', 'donasi', 'no'];
-        // let is_header_missing = false;
-        // const missing_headers: string[] = [];
-
-        const header = data[1] as string[];
+    
+        // Define expected headers based on your Excel file structure
+        const expected_headers = ['no', 'tangal', 'nama', 'telp/hp', 'donasi', 'via', 'keterangan'];
+        const header_mapping: { [key: string]: string } = {
+            'tangal': 'tanggal', // Fix typo in header
+            'keterangan': 'sumber_dana' // Map keterangan to sumber_dana
+        };
+    
+        // Start reading headers from row 5 (index 4 in zero-based)
+        const header = data[5] as string[]; // Changed to row 5 (index 4)
+        if (!header || header.length === 0) {
+            throw new Error('Header row not found or empty');
+        }
+    
         const header_index: { [key: string]: number } = {};
-
+        const donation_columns: number[] = []; // To store indices of all donation columns
+    
         // Normalize and map header positions
-        for (let i = 1; i <= header.length; i++) {
+        for (let i = 0; i < header.length; i++) {
             let header_name = header[i];
             if (header_name == undefined) {
                 continue;
             }
-
+    
             header_name = header_name.toLowerCase().trim();
-            header_index[header_name] = i;
+            
+            // Check if this is a donation column (donasi, donasi a, donasi b, etc.)
+            if (header_name.includes('donasi')) {
+                donation_columns.push(i);
+                header_index['donasi'] = i; // Will keep the last one if multiple
+            } else {
+                header_index[header_name] = i;
+            }
         }
-
+    
         // Check for missing headers and set to -1 in header_index if missing
         for (const expected_header of expected_headers) {
             if (!(expected_header in header_index)) {
-                // is_header_missing = true;
-                // missing_headers.push(expected_header);
                 header_index[expected_header] = -1; // Set to -1 if header is missing
             }
         }
-
+    
         const row_data: KeyValue[] = [];
-        for (let i = 2; i < data.length; i++) {
+        // Start reading data from row 6 (index 5 in zero-based)
+        for (let i = 7; i < data.length; i++) {
             const data_iter = data[i] as string[];
-            const tahun = header_index['tahun'] !== -1 ? parseInt(data_iter[header_index['tahun']]) : 0;
-            const nominal = header_index['donasi'] !== -1 ? parseInt(data_iter[header_index['donasi']]) : 0;
-
-            const no_hp_key = ['no hp', 'nomor hp', 'hp'].find(key => key in header_index) || '';
+            if (!data_iter || data_iter.length === 0) continue; // Skip empty rows
+            
+            // Calculate total donation from all donation columns
+            let totalDonation = 0;
+            if (donation_columns.length > 0) {
+                for (const col of donation_columns) {
+                    const donationValue = parseInt(data_iter[col]) || 0;
+                    totalDonation += donationValue;
+                }
+            } else if (header_index['donasi'] !== -1) {
+                totalDonation = parseInt(data_iter[header_index['donasi']]) || 0;
+            }
+            
             const row: KeyValue = {
                 ['nama']: header_index['nama'] !== -1 ? data_iter[header_index['nama']]?.trim() || '' : '',
-                ['no_hp']: header_index[no_hp_key] !== -1 ? data_iter[header_index[no_hp_key]] || '' : '',
-                ['tanggal']: header_index['tanggal'] !== -1 ? data_iter[header_index['tanggal']] || '' : '',
-                ['tahun']: tahun || 0,
-                ['zis']: header_index['zis'] !== -1 ? data_iter[header_index['zis']]?.trim() || '' : '',
+                ['no_hp']: header_index['telp/hp'] !== -1 ? data_iter[header_index['telp/hp']]?.trim() || '' : '',
+                ['tanggal']: header_index['tangal'] !== -1 ? data_iter[header_index['tangal']] || '' : '',
+                ['tahun']: header_index['tangal'] !== -1 ? extractYearFromDate(data_iter[header_index['tangal']]) : 0,
+                ['zis']: '', // Your Excel doesn't have zis column
                 ['via']: header_index['via'] !== -1 ? data_iter[header_index['via']]?.trim() || '' : '',
-                ['sumber_dana']: header_index['sumber dana'] !== -1 ? data_iter[header_index['sumber dana']]?.trim() || '' : '',
-                ['nominal']: nominal || 0
+                ['sumber_dana']: header_index['keterangan'] !== -1 ? data_iter[header_index['keterangan']]?.trim() || '' : '',
+                ['nominal']: totalDonation
             };
-
-            row_data.push(row)
+    
+            row_data.push(row);
         }
-
+    
         const classifier = new DonationClassifier();
         const classified_data = classifier.classify(row_data);
-
+    
         const res_jurnal = await Jurnal.create({
-            'name': attachment_name
+            'name': attachment_name,
+            'jenisJurnal': jenisJurnal
         }) as unknown as JurnalRow;
-
+    
         // Insert to database
         for (let i = 0; i < classified_data.length; i++) {
             const row = classified_data[i];
@@ -163,7 +188,7 @@ export async function POST(
                 jenis_donatur: row['jenis_donatur']
             });
         }
-
+    
         return new Response(JSON.stringify({
             status: 'success',
             data: {
@@ -176,10 +201,10 @@ export async function POST(
         });
     } catch (error) {
         console.log(error);
-
+    
         return new Response(JSON.stringify({
             status: 'error',
-            message: 'Failed to upload data'
+            message: 'Failed to upload data: ' + (error instanceof Error ? error.message : String(error))
         }), {
             headers: {
                 'Content-Type': 'application/json'
@@ -254,5 +279,42 @@ export async function DELETE(
                 'Content-Type': 'application/json'
             }
         });
+    }
+}
+
+function extractYearFromDate(dateString: string): number {
+    if (!dateString) return 0;
+    
+    try {
+        // Try parsing as Date object first
+        const date = new Date(dateString);
+        if (!isNaN(date.getTime())) {
+            return date.getFullYear();
+        }
+        
+        // Try extracting year from string patterns (like "DD/MM/YYYY")
+        const yearMatch = dateString.match(/(\d{4})/);
+        if (yearMatch && yearMatch[1]) {
+            return parseInt(yearMatch[1]);
+        }
+        
+        // Try splitting by common separators
+        const parts = dateString.split(/[/\-.]/);
+        if (parts.length >= 3) {
+            // Check which part looks like a year (4 digits)
+            for (const part of parts) {
+                if (/^\d{4}$/.test(part)) {
+                    return parseInt(part);
+                }
+            }
+            // If no 4-digit part found, assume last part is year (for 2-digit years)
+            const lastPart = parts[parts.length - 1];
+            return parseInt(lastPart) > 50 ? 1900 + parseInt(lastPart) : 2000 + parseInt(lastPart);
+        }
+        
+        return 0;
+    } catch (e) {
+        console.error('Error parsing date:', dateString, e);
+        return 0;
     }
 }

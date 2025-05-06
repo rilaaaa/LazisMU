@@ -43,6 +43,7 @@ export default function JournalTable({ onDeleteSuccess, setSelectedJournal, entr
             <tr>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">No</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Nama Jurnal</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Jenis Jurnal</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Aksi</th>
             </tr>
           </thead>
@@ -66,6 +67,7 @@ export default function JournalTable({ onDeleteSuccess, setSelectedJournal, entr
                 <tr key={index} onClick={() => handleRowClick(entry.id)} className="cursor-pointer hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{index + 1}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{entry.name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{entry.jenisJurnal}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     {/* Delete Butston */}
                     <div className="flex space-x-4">

@@ -15,6 +15,10 @@ export const Jurnal = Database.define('Jurnal', {
     name: {
         type: Sequelize.STRING,
         allowNull: false
+    },
+    jenisJurnal: {
+        type: Sequelize.STRING,
+        allowNull: false
     }
 });
 

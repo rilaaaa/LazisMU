@@ -69,6 +69,8 @@ export type JournalTableProps = {
 }
 
 export type JournalEntry = {
+  jenisJurnal: ReactNode
+  category: string
   id: number;
   name: string;
   JurnalData: JurnalDataRow[];

@@ -1,37 +1,43 @@
 import React from 'react';
-import { JournalDetailTableProps, JurnalDataRow } from '@/lib/types';
+import { JournalDetailTableProps } from '@/lib/types';
 
-export default function JournalDetailTable({ journal, entries }: JournalDetailTableProps & { searchTerm: string, entries: JurnalDataRow[] }) {
-  if (!journal || !journal.JurnalData) {
-    return null;
+export default function JournalDetailTable({ journal, searchTerm }: JournalDetailTableProps & { searchTerm: string }) {
+  const entries = journal?.JurnalData || [];
+
+  if (!journal || !entries.length) {
+    return <p className="text-gray-500 text-sm px-4">Data jurnal tidak tersedia.</p>;
   }
 
+  const filteredEntries = entries.filter((entry) =>
+    entry.nama.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
-    <div className='overflow-x-auto'>
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
+    <div className='overflow-x-auto mt-4'>
+      <table className="min-w-full divide-y divide-gray-200 bg-white shadow rounded-md">
+        <thead className="bg-gray-100">
           <tr>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Nama</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">No HP</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">ZIS</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Via</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Tahun</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Jenis Donatur</th>
+            <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">Nama</th>
+            <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">No HP</th>
+            <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">ZIS</th>
+            <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">Via</th>
+            <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">Tahun</th>
+            <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">Jenis Donatur</th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {entries.map((data, index) => (
+        <tbody className="divide-y divide-gray-100">
+          {filteredEntries.map((data, index) => (
             <tr key={index} className="hover:bg-gray-50">
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{data.nama}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{data.no_hp}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{data.zis}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{data.via}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{data.tahun}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{data.jenis_donatur}</td>
+              <td className="px-6 py-4 text-sm text-gray-700">{data.nama}</td>
+              <td className="px-6 py-4 text-sm text-gray-700">{data.no_hp}</td>
+              <td className="px-6 py-4 text-sm text-gray-700">{data.zis}</td>
+              <td className="px-6 py-4 text-sm text-gray-700">{data.via}</td>
+              <td className="px-6 py-4 text-sm text-gray-700">{data.tahun}</td>
+              <td className="px-6 py-4 text-sm text-gray-700">{data.jenis_donatur}</td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
   );
-};
+}

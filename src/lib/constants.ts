@@ -4,7 +4,8 @@ export const ITEMS_PER_PAGE = 7
 
 export const sidebarItems: SidebarItem[] = [
   { name: 'Dashboard', icon: '/icon/dashboard-icon.svg', activeIcon: '/icon/dashboard-icon-active.svg', href: '/', isActive: false },
-  { name: 'Jurnal', icon: '/icon/journal-icon.svg', activeIcon: '/icon/journal-icon-active.svg', href: '/journal', isActive: false },
+  { name: 'Jurnal Umum', icon: '/icon/journal-icon.svg', activeIcon: '/icon/journal-icon-active.svg', href: '/journal', isActive: false },
+  { name: 'Jurnal Khusus', icon: '/icon/journal-icon.svg', activeIcon: '/icon/journal-icon-active.svg', href: '/journal.cleaning', isActive: false },
   { name: 'Database', icon: '/icon/database-icon.svg', activeIcon: '/icon/database-icon-active.svg', href: '/database', isActive: false },
   { name: 'Maintenance', icon: '/icon/maintenance-icon.svg', activeIcon: '/icon/maintenance-icon-active.svg', href: '/maintenance', isActive: false },
   { name: 'History', icon: '/icon/history-icon.svg', activeIcon: '/icon/history-icon-active.svg', href: '/history', isActive: false },

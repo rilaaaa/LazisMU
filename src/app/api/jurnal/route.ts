@@ -1,153 +1,205 @@
 "use server";
 
-import { Jurnal, JurnalData } from "@/db/db";
+import { Jurnal, JurnalData, JurnalDataCleaning } from "@/db/db";
 import * as exceljs from 'exceljs';
 import { Buffer } from 'buffer';
 import { DonationClassifier, KeyValue } from "./classifikasi";
 import { JurnalRow } from "@/lib/types";
 
-export async function GET(
-    request: Request,
-) {
-    await Jurnal.sync();
-
-    const params_id = new URL(request.url).searchParams.get('id');
-    let res_jurnal: JurnalRow | JurnalRow[] | null = null;
-
-    if (params_id) {
-        const data = await Jurnal.findAll({
-            where: {
-                id: params_id
-            },
-            include: [JurnalData]
-        });
-
-        if (data.length == 0) {
-            res_jurnal = null;
-        } else {
-            res_jurnal = data[0].get();
+// Helper function untuk extract tahun dari tanggal
+function extractYearFromDate(dateString: string): number {
+    if (!dateString) return 0;
+    
+    try {
+        const date = new Date(dateString);
+        if (!isNaN(date.getTime())) {
+            return date.getFullYear();
         }
-    }
-    else {
-        const jurnalData = await Jurnal.findAll();
-        res_jurnal = jurnalData.map(j => j.get()) as JurnalRow[];
-    }
-
-    if (res_jurnal == null) {
-        return new Response(JSON.stringify({
-            status: 'error',
-            message: 'Data not found'
-        }), {
-            headers: {
-                'Content-Type': 'application/json'
+        
+        const yearMatch = dateString.match(/(\d{4})/);
+        if (yearMatch && yearMatch[1]) {
+            return parseInt(yearMatch[1]);
+        }
+        
+        const parts = dateString.split(/[/\-.]/);
+        if (parts.length >= 3) {
+            for (const part of parts) {
+                if (/^\d{4}$/.test(part)) {
+                    return parseInt(part);
+                }
             }
-        });
-    }
-
-    return new Response(JSON.stringify({
-        status: 'success',
-        data: res_jurnal
-    }), {
-        headers: {
-            'Content-Type': 'application/json'
+            const lastPart = parts[parts.length - 1];
+            return parseInt(lastPart) > 50 ? 1900 + parseInt(lastPart) : 2000 + parseInt(lastPart);
         }
-    });
+        
+        return 0;
+    } catch (e) {
+        console.error('Error parsing date:', dateString, e);
+        return 0;
+    }
 }
 
-export async function POST(
-    request: Request,
-) {
-    const body = await request.json();
-    const { attachment_name, attachment_base64, jenisJurnal } = body;
-    let exceldata;
-
+export async function GET(request: Request) {
     try {
-        exceldata = new exceljs.Workbook();
+        await Jurnal.sync();
+        await JurnalData.sync();
+        await JurnalDataCleaning.sync();
+
+        const url = new URL(request.url);
+        const params_id = url.searchParams.get('id');
+        const include_cleaning = url.searchParams.get('include_cleaning') === 'true';
+        const cleaning_only = url.searchParams.get('cleaning_only') === 'true';
+
+        let res_jurnal: any = null;
+
+        if (cleaning_only && params_id) {
+            // Kasus khusus: hanya ambil data cleaning
+            const cleaningData = await JurnalDataCleaning.findAll({
+                where: { jurnal_id: params_id }
+            });
+            
+            return new Response(JSON.stringify({
+                status: 'success',
+                data: cleaningData.map(d => d.get())
+            }), {
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
+        if (params_id) {
+            const includeOptions = [JurnalData];
+            
+            if (include_cleaning) {
+                includeOptions.push(JurnalDataCleaning);
+            }
+
+            const data = await Jurnal.findAll({
+                where: { id: params_id },
+                include: includeOptions
+            });
+
+            res_jurnal = data.length > 0 ? data[0].get() : null;
+        } else {
+            const includeOptions = include_cleaning 
+                ? [JurnalData, JurnalDataCleaning] 
+                : [JurnalData];
+
+            const jurnalData = await Jurnal.findAll({ include: includeOptions });
+            res_jurnal = jurnalData.map(j => j.get());
+        }
+
+        if (!res_jurnal) {
+            return new Response(JSON.stringify({
+                status: 'error',
+                message: 'Data not found'
+            }), { 
+                status: 404,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
+        return new Response(JSON.stringify({
+            status: 'success',
+            data: res_jurnal
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+    } catch (error) {
+        console.error('GET Error:', error);
+        return new Response(JSON.stringify({
+            status: 'error',
+            message: 'Internal server error'
+        }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+export async function POST(request: Request) {
+    try {
+        const body = await request.json();
+        const { attachment_name, attachment_base64, jenisJurnal } = body;
+        
+        // Validasi input
+        if (!attachment_name || !attachment_base64 || !jenisJurnal) {
+            return new Response(JSON.stringify({
+                status: 'error',
+                message: 'Missing required fields'
+            }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
+        // Proses file Excel
+        const exceldata = new exceljs.Workbook();
         const buffer = Buffer.from(attachment_base64, 'base64');
         const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
         await exceldata.xlsx.load(arrayBuffer);
-    } catch {
-        return new Response(JSON.stringify({
-            status: 'error',
-            message: 'Invalid excel file'
-        }), {
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-    }
 
-    if (exceldata.worksheets.length == 0) {
-        return new Response(JSON.stringify({
-            status: 'error',
-            message: 'No worksheet found'
-        }), {
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-    }
+        if (exceldata.worksheets.length === 0) {
+            return new Response(JSON.stringify({
+                status: 'error',
+                message: 'No worksheet found'
+            }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
 
-    try {
         const worksheet = exceldata.worksheets[0];
         const data = worksheet.getSheetValues();
-    
-        // Define expected headers based on your Excel file structure
-        const expected_headers = ['no', 'tangal', 'nama', 'telp/hp', 'donasi', 'via', 'keterangan'];
+
+        // Proses data Excel
+        const expected_headers = ['no', 'tanggal', 'nama', 'telp/hp', 'donasi', 'via', 'keterangan'];
         const header_mapping: { [key: string]: string } = {
-            'tangal': 'tanggal', // Fix typo in header
-            'keterangan': 'sumber_dana' // Map keterangan to sumber_dana
+            'tanggal': 'tanggal',
+            'keterangan': 'sumber_dana'
         };
-    
-        // Start reading headers from row 5 (index 4 in zero-based)
-        const header = data[5] as string[]; // Changed to row 5 (index 4)
+
+        const header = data[5] as string[];
         if (!header || header.length === 0) {
             throw new Error('Header row not found or empty');
         }
-    
+
         const header_index: { [key: string]: number } = {};
-        const donation_columns: number[] = []; // To store indices of all donation columns
-    
-        // Normalize and map header positions
+        const donation_columns: number[] = [];
+
         for (let i = 0; i < header.length; i++) {
             let header_name = header[i];
-            if (header_name == undefined) {
-                continue;
-            }
-    
+            if (header_name == undefined) continue;
+
             header_name = header_name.toLowerCase().trim();
             
-            // Check if this is a donation column (donasi, donasi a, donasi b, etc.)
             if (header_name.includes('donasi')) {
                 donation_columns.push(i);
-                header_index['donasi'] = i; // Will keep the last one if multiple
+                header_index['donasi'] = i;
             } else {
                 header_index[header_name] = i;
             }
         }
-    
-        // Check for missing headers and set to -1 in header_index if missing
+
         for (const expected_header of expected_headers) {
             if (!(expected_header in header_index)) {
-                header_index[expected_header] = -1; // Set to -1 if header is missing
+                header_index[expected_header] = -1;
             }
         }
-    
+
         const row_data: KeyValue[] = [];
-        // Start reading data from row 6 (index 5 in zero-based)
         for (let i = 7; i < data.length; i++) {
             const data_iter = data[i] as string[];
-            if (!data_iter || data_iter.length === 0) continue; // Skip empty rows
+            if (!data_iter || data_iter.length === 0) continue;
             
-            // Calculate total donation from all donation columns
             let totalDonation = 0;
             if (donation_columns.length > 0) {
                 for (const col of donation_columns) {
-                    const donationValue = parseInt(data_iter[col]) || 0;
+                    const donationValue = parseInt(data_iter[col] as string) || 0;
                     totalDonation += donationValue;
                 }
             } else if (header_index['donasi'] !== -1) {
-                totalDonation = parseInt(data_iter[header_index['donasi']]) || 0;
+                totalDonation = parseInt(data_iter[header_index['donasi']] as string) || 0;
             }
             
             const row: KeyValue = {
@@ -155,26 +207,25 @@ export async function POST(
                 ['no_hp']: header_index['telp/hp'] !== -1 ? data_iter[header_index['telp/hp']]?.trim() || '' : '',
                 ['tanggal']: header_index['tangal'] !== -1 ? data_iter[header_index['tangal']] || '' : '',
                 ['tahun']: header_index['tangal'] !== -1 ? extractYearFromDate(data_iter[header_index['tangal']]) : 0,
-                ['zis']: '', // Your Excel doesn't have zis column
+                ['zis']: '',
                 ['via']: header_index['via'] !== -1 ? data_iter[header_index['via']]?.trim() || '' : '',
                 ['sumber_dana']: header_index['keterangan'] !== -1 ? data_iter[header_index['keterangan']]?.trim() || '' : '',
                 ['nominal']: totalDonation
             };
-    
+
             row_data.push(row);
         }
-    
+
         const classifier = new DonationClassifier();
         const classified_data = classifier.classify(row_data);
-    
+
+        // Simpan ke database
         const res_jurnal = await Jurnal.create({
-            'name': attachment_name,
-            'jenisJurnal': jenisJurnal
+            name: attachment_name,
+            jenisJurnal: jenisJurnal
         }) as unknown as JurnalRow;
-    
-        // Insert to database
-        for (let i = 0; i < classified_data.length; i++) {
-            const row = classified_data[i];
+
+        for (const row of classified_data) {
             await JurnalData.create({
                 jurnal_id: res_jurnal.id,
                 nama: row['nama'],
@@ -188,133 +239,147 @@ export async function POST(
                 jenis_donatur: row['jenis_donatur']
             });
         }
-    
+
+        // Panggil moveToCleaning untuk membersihkan data
+        await moveToCleaning(res_jurnal.id);
+
         return new Response(JSON.stringify({
             status: 'success',
             data: {
                 id: res_jurnal.id,
             }
         }), {
-            headers: {
-                'Content-Type': 'application/json'
-            }
+            headers: { 'Content-Type': 'application/json' }
         });
+
     } catch (error) {
-        console.log(error);
-    
+        console.error('POST Error:', error);
         return new Response(JSON.stringify({
             status: 'error',
-            message: 'Failed to upload data: ' + (error instanceof Error ? error.message : String(error))
+            message: 'Failed to process request: ' + (error instanceof Error ? error.message : String(error))
         }), {
-            headers: {
-                'Content-Type': 'application/json'
-            }
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
         });
     }
 }
 
-export async function DELETE(
-    request: Request,
-) {
-    const params_id = new URL(request.url).searchParams.get('id');
-    if (!params_id) {
-        return new Response(JSON.stringify({
-            status: 'error',
-            message: 'Invalid parameter'
-        }), {
-            status: 400,
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-    }
-
+export async function DELETE(request: Request) {
     try {
-        const is_exist = await Jurnal.findOne({
-            where: {
-                id: params_id
-            }
-        });
+        const params_id = new URL(request.url).searchParams.get('id');
+        if (!params_id) {
+            return new Response(JSON.stringify({
+                status: 'error',
+                message: 'Invalid parameter'
+            }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
 
+        const is_exist = await Jurnal.findOne({ where: { id: params_id } });
         if (!is_exist) {
             return new Response(JSON.stringify({
                 status: 'error',
                 message: 'Data not found'
             }), {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
+                status: 404,
+                headers: { 'Content-Type': 'application/json' }
             });
         }
 
-        // delete jurnal, but wtih jurnaldata too
-        await Jurnal.destroy({
-            where: {
-                id: params_id
-            }
-        });
-
-        await JurnalData.destroy({
-            where: {
-                jurnal_id: params_id
-            }
-        });
+        await JurnalData.destroy({ where: { jurnal_id: params_id } });
+        await JurnalDataCleaning.destroy({ where: { jurnal_id: params_id } });
+        await Jurnal.destroy({ where: { id: params_id } });
 
         return new Response(JSON.stringify({
             status: 'success',
+            message: 'Data deleted successfully'
         }), {
-            headers: {
-                'Content-Type': 'application/json'
-            }
+            headers: { 'Content-Type': 'application/json' }
         });
-    } catch (error) {
-        console.error(error)
 
+    } catch (error) {
+        console.error('DELETE Error:', error);
         return new Response(JSON.stringify({
             status: 'error',
             message: 'Failed to delete data'
         }), {
             status: 500,
-            headers: {
-                'Content-Type': 'application/json'
-            }
+            headers: { 'Content-Type': 'application/json' }
         });
     }
 }
 
-function extractYearFromDate(dateString: string): number {
-    if (!dateString) return 0;
-    
+export async function moveToCleaning(jurnalId: string) {
     try {
-        // Try parsing as Date object first
-        const date = new Date(dateString);
-        if (!isNaN(date.getTime())) {
-            return date.getFullYear();
+        if (!jurnalId) throw new Error('Journal ID is required');
+
+        const journalExists = await Jurnal.findByPk(jurnalId);
+        if (!journalExists) throw new Error('Journal not found');
+
+        const originalData = await JurnalData.findAll({
+            where: { jurnal_id: jurnalId },
+            raw: true
+        });
+
+        if (!originalData || originalData.length === 0) {
+            throw new Error('No data found to move');
         }
-        
-        // Try extracting year from string patterns (like "DD/MM/YYYY")
-        const yearMatch = dateString.match(/(\d{4})/);
-        if (yearMatch && yearMatch[1]) {
-            return parseInt(yearMatch[1]);
-        }
-        
-        // Try splitting by common separators
-        const parts = dateString.split(/[/\-.]/);
-        if (parts.length >= 3) {
-            // Check which part looks like a year (4 digits)
-            for (const part of parts) {
-                if (/^\d{4}$/.test(part)) {
-                    return parseInt(part);
+
+        // Gabungkan berdasarkan nomor HP
+        const mergedDataMap: { [no_hp: string]: any } = {};
+
+        for (const data of originalData) {
+            const key = data.no_hp?.trim() || '';
+
+            if (!key) continue;
+
+            if (!mergedDataMap[key]) {
+                mergedDataMap[key] = { ...data };
+            } else {
+                // Gabungkan nominal
+                mergedDataMap[key].nominal += data.nominal;
+                // Concatenate nama dan sumber_dana jika berbeda
+                if (mergedDataMap[key].nama !== data.nama) {
+                    mergedDataMap[key].nama += ` / ${data.nama}`;
+                }
+                if (mergedDataMap[key].sumber_dana !== data.sumber_dana) {
+                    mergedDataMap[key].sumber_dana += ` / ${data.sumber_dana}`;
                 }
             }
-            // If no 4-digit part found, assume last part is year (for 2-digit years)
-            const lastPart = parts[parts.length - 1];
-            return parseInt(lastPart) > 50 ? 1900 + parseInt(lastPart) : 2000 + parseInt(lastPart);
         }
-        
-        return 0;
-    } catch (e) {
-        console.error('Error parsing date:', dateString, e);
-        return 0;
+
+        const cleaningData = Object.values(mergedDataMap).map((data: any) => ({
+            jurnal_id: data.jurnal_id,
+            nama: data.nama,
+            no_hp: data.no_hp,
+            tanggal: data.tanggal,
+            tahun: data.tahun,
+            zis: data.zis,
+            via: data.via,
+            sumber_dana: data.sumber_dana,
+            nominal: data.nominal,
+            jenis_donatur: data.jenis_donatur,
+            cleaned: false,
+            notes: '',
+            created_at: new Date(),
+            updated_at: new Date()
+        }));
+
+        const result = await JurnalDataCleaning.bulkCreate(cleaningData);
+
+        return {
+            status: 'success',
+            message: `Successfully moved ${result.length} merged records to cleaning table`,
+            count: result.length
+        };
+
+    } catch (error) {
+        console.error('Error in moveToCleaning:', error);
+        return {
+            status: 'error',
+            message: error instanceof Error ? error.message : 'Failed to move data to cleaning table'
+        };
     }
 }

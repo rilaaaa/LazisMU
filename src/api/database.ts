@@ -12,6 +12,10 @@ export async function getJurnalDataById(id: number) {
   return await fetchData(`/api/jurnal?id=${id}`, 'Failed to fetch jurnal data');
 }
 
+export async function getJurnalDataCleaningById(id: number) {
+  return await fetchData(`/api/jurnal?cleaning_only=true&id=${id}`, 'Failed to fetch jurnal data');
+}
+
 export async function deleteJurnal(id: number) {
   try {
     const res = await fetch(`${API_HOST}/api/jurnal?id=${id}`, {

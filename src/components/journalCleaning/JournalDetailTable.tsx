@@ -2,7 +2,7 @@ import React from 'react';
 import { JournalDetailTableProps } from '@/lib/types';
 
 export default function JournalDetailTable({ journal, searchTerm }: JournalDetailTableProps & { searchTerm: string }) {
-  const entries = journal?.JurnalData || [];
+  const entries = journal?.JurnalDataCleanings || [];
 
   if (!journal || !entries.length) {
     return <p className="text-gray-500 text-sm px-4">Data jurnal tidak tersedia.</p>;

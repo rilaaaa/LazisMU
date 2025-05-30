@@ -73,7 +73,7 @@ export const JurnalData = Database.define('JurnalData', {
     }
 });
 
-export const JurnalDataCleaning = Database.define('JurnalDataCleaning', {
+export const JurnalDataCleaning = Database.define('JurnalDataCleanings', {
     id: {
         type: Sequelize.INTEGER,
         autoIncrement: true,

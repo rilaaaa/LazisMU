@@ -52,11 +52,12 @@ export default function JournalPage() {
     const term = detailSearchTerm.toLowerCase();
     return selectedJournal.JurnalData.filter(item =>
       item.nama.toLowerCase().includes(term) ||
-      item.no_hp.toLowerCase().includes(term) ||
-      item.zis.toLowerCase().includes(term) ||
-      item.via.toLowerCase().includes(term) ||
+      (item.no_hp || '').toLowerCase().includes(term) ||
+      (item.zis || '').toLowerCase().includes(term) ||
+      (item.via || '').toLowerCase().includes(term) ||
       item.tahun.toString().includes(term) ||
-      item.jenis_donatur.toLowerCase().includes(term)
+      (item.jenis_donatur || '').toLowerCase().includes(term)
+
     );
   }, [selectedJournal, detailSearchTerm]);
 
@@ -75,7 +76,7 @@ export default function JournalPage() {
   return (
     <div className="p-6 text-black">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-semibold">Jurnal Umum</h1>
+        <h1 className="text-3xl font-semibold">Jurnal Khusus</h1>
         <Notifications />
       </div>
 

@@ -50,21 +50,28 @@ export async function GET(request: Request) {
         const include_cleaning = url.searchParams.get('include_cleaning') === 'true';
         const cleaning_only = url.searchParams.get('cleaning_only') === 'true';
 
-        let res_jurnal: any = null;
-
         if (cleaning_only && params_id) {
-            // Kasus khusus: hanya ambil data cleaning
+            // Format response to match standard structure
             const cleaningData = await JurnalDataCleaning.findAll({
                 where: { jurnal_id: params_id }
             });
-            
+
+            // Create a mock journal structure with cleaning data
+            const formattedResponse = {
+                id: params_id,
+                JurnalData: [], // Empty array for regular data
+                JurnalDataCleanings: cleaningData.map(d => d.get()) // Cleaning data
+            };
+
             return new Response(JSON.stringify({
                 status: 'success',
-                data: cleaningData.map(d => d.get())
+                data: formattedResponse
             }), {
                 headers: { 'Content-Type': 'application/json' }
             });
         }
+
+        let res_jurnal: any = null;
 
         if (params_id) {
             const includeOptions = [JurnalData];
@@ -79,13 +86,24 @@ export async function GET(request: Request) {
             });
 
             res_jurnal = data.length > 0 ? data[0].get() : null;
+            
+            // Ensure consistent property names
+            if (res_jurnal && include_cleaning) {
+                res_jurnal.JurnalDataCleanings = res_jurnal.JurnalDataCleanings || [];
+            }
         } else {
             const includeOptions = include_cleaning 
                 ? [JurnalData, JurnalDataCleaning] 
                 : [JurnalData];
 
             const jurnalData = await Jurnal.findAll({ include: includeOptions });
-            res_jurnal = jurnalData.map(j => j.get());
+            res_jurnal = jurnalData.map(j => {
+                const journal = j.get();
+                if (include_cleaning) {
+                    journal.JurnalDataCleanings = journal.JurnalDataCleanings || [];
+                }
+                return journal;
+            });
         }
 
         if (!res_jurnal) {

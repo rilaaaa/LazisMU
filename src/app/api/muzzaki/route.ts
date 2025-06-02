@@ -1,12 +1,12 @@
 "use server";
 
-import { JurnalData } from "@/db/db";
+import { JurnalData, JurnalDataCleaning } from "@/db/db";
 import { JurnalDataRow } from "@/lib/types";
 
 export async function GET() {
-    await JurnalData.sync();
+    await JurnalDataCleaning.sync();
 
-    const sql_res = await JurnalData.findAll();
+    const sql_res = await JurnalDataCleaning.findAll();
     const actual_data = [];
 
     for (let i = 0; i < sql_res.length; i++) {

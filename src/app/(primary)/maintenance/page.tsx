@@ -12,30 +12,93 @@ import ReminderTelatDonasi from '@/components/maintenance/ReminderTelatDonasi';
 
 export default function MaintenancePage() {
   const [showBlastPage, setShowBlastPage] = useState(false);
+  const [showKategoriSelection, setShowKategoriSelection] = useState(false);
   const [showBlastPerKategoriPage, setShowBlastPerKategoriPage] = useState(false);
   const [selectedKategori, setSelectedKategori] = useState<string | null>(null);
   const [showReminderPage, setShowReminderPage] = useState(false);
 
   const handleKategoriClick = () => {
-    setShowBlastPerKategoriPage(true);
+    setShowKategoriSelection(true);
   };
 
   const handleKategoriSelect = (kategori: string) => {
+    console.log('Kategori dipilih:', kategori);
     setSelectedKategori(kategori);
+    setShowKategoriSelection(false);
+    setShowBlastPerKategoriPage(true);
+    console.log('State setelah pilih:', { kategori, showKategoriSelection: false, showBlastPerKategoriPage: true });
+  };
+
+  const handleBackFromKategoriSelection = () => {
+    setShowKategoriSelection(false);
+    setSelectedKategori(null);
+  };
+
+  const handleBackFromBlastPerKategori = () => {
+    setShowBlastPerKategoriPage(false);
+    setSelectedKategori(null);
   };
 
   return (
-    <main className="p-6">
+    <main className="p-6">      
       {showBlastPage ? (
         <BlastPesanSemuaMuzakki onBack={() => setShowBlastPage(false)} />
       ) : showBlastPerKategoriPage && selectedKategori ? (
         <BlastPesanPerKategori
           kategori={selectedKategori}
-          onBack={() => {
-            setShowBlastPerKategoriPage(false);
-            setSelectedKategori(null);
-          }}
+          onBack={handleBackFromBlastPerKategori}
         />
+      ) : showKategoriSelection ? (
+        <div>
+          <Button 
+            onClick={handleBackFromKategoriSelection} 
+            className="mb-4 bg-gray-300 text-black hover:bg-gray-400"
+          >
+            ← Kembali
+          </Button>
+          <h2 className="text-xl font-bold mb-4">Pilih Kategori Muzakki</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <Button
+              onClick={() => {
+                console.log('Button Momentum diklik');
+                handleKategoriSelect('momentum');
+              }}
+              className="bg-blue-500 hover:bg-blue-600 text-white p-4 h-auto"
+            >
+              Momentum
+            </Button>
+            <Button
+              onClick={() => handleKategoriSelect('besar-sering')}
+              className="bg-blue-500 hover:bg-blue-600 text-white p-4 h-auto"
+            >
+              Besar Sering
+            </Button>
+            <Button
+              onClick={() => handleKategoriSelect('besar-jarang')}
+              className="bg-blue-500 hover:bg-blue-600 text-white p-4 h-auto"
+            >
+              Besar Jarang
+            </Button>
+            <Button
+              onClick={() => handleKategoriSelect('kecil-sering')}
+              className="bg-blue-500 hover:bg-blue-600 text-white p-4 h-auto"
+            >
+              Kecil Sering
+            </Button>
+            <Button
+              onClick={() => handleKategoriSelect('kecil-jarang')}
+              className="bg-blue-500 hover:bg-blue-600 text-white p-4 h-auto"
+            >
+              Kecil Jarang
+            </Button>
+            <Button
+              onClick={() => handleKategoriSelect('calon')}
+              className="bg-blue-500 hover:bg-blue-600 text-white p-4 h-auto"
+            >
+              Calon
+            </Button>
+          </div>
+        </div>
       ) : showReminderPage ? (
         <ReminderTelatDonasi onBack={() => setShowReminderPage(false)} />
       ) : (
@@ -81,23 +144,6 @@ export default function MaintenancePage() {
               </Button>
             </div>
           </div>
-
-          {/* Tabs untuk memilih kategori */}
-          {showBlastPerKategoriPage && (
-            <div className="mb-4">
-              <h3 className="font-semibold mb-2">Pilih Kategori</h3>
-              <Tabs defaultValue="momentum" onValueChange={handleKategoriSelect}>
-                <TabsList>
-                  <TabsTrigger value="momentum">Momentum</TabsTrigger>
-                  <TabsTrigger value="besar-sering">Besar Sering</TabsTrigger>
-                  <TabsTrigger value="besar-jarang">Besar Jarang</TabsTrigger>
-                  <TabsTrigger value="kecil-sering">Kecil Sering</TabsTrigger>
-                  <TabsTrigger value="kecil-jarang">Kecil Jarang</TabsTrigger>
-                  <TabsTrigger value="calon">Calon</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
-          )}
 
           {/* Table Muzakki */}
           <div className="overflow-auto rounded-xl border">

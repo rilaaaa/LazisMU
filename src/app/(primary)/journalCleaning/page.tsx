@@ -84,7 +84,7 @@ export default function JournalPage() {
   return (
     <div className="p-6" style={{ color: 'black' }}>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-semibold">Jurnal Umum</h1>
+        <h1 className="text-3xl font-semibold">Jurnal Khusus</h1>
         <Notifications />
       </div>
 
@@ -125,12 +125,7 @@ export default function JournalPage() {
 
         <div className="flex items-center w-full sm:w-auto">
           <SearchBar searchTerm={selectedJournal ? detailSearchTerm : searchTerm} onSearchChange={handleSearchChange} onClearSearch={clearSearch} />
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="ml-4 bg-orange-500 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
-          >
-            <PlusIcon className="h-5 w-5" />
-          </button>
+          
         </div>
       </div>
 
@@ -153,29 +148,6 @@ export default function JournalPage() {
         </div>
       </div>
 
-      {selectedJournal ? (
-        <Pagination 
-          currentPage={detailCurrentPage} 
-          totalPages={totalDetailPages} 
-          onPageChange={setDetailCurrentPage} 
-          totalItems={filteredDetailEntries.length}
-        />
-      ) : (
-        <Pagination 
-          currentPage={currentPage} 
-          totalPages={totalPages} 
-          onPageChange={setCurrentPage} 
-          totalItems={filteredEntries.length}
-        />
-      )}
-
-      {isModalOpen && (
-        <FileUploadModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onUploadSuccess={fetchJournalEntries}
-        />
-      )}
     </div>
   );
 }

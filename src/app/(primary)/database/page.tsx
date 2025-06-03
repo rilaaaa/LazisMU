@@ -25,11 +25,20 @@ export default function DatabasePage() {
     fetchMuzzakiData()
   }, [])
 
-  const filteredMuzakki = useMemo(() => filterMuzakki(muzakkiData, searchTerm), [muzakkiData, searchTerm])
+  const filteredMuzakki = useMemo(
+    () => filterMuzakki(muzakkiData, searchTerm),
+    [muzakkiData, searchTerm]
+  )
 
-  const totalPages = useMemo(() => Math.ceil(filteredMuzakki.length / ITEMS_PER_PAGE), [filteredMuzakki])
+  const totalPages = useMemo(
+    () => Math.ceil(filteredMuzakki.length / ITEMS_PER_PAGE),
+    [filteredMuzakki]
+  )
 
-  const currentEntries = useMemo(() => paginateMuzakki(filteredMuzakki, currentPage, ITEMS_PER_PAGE), [filteredMuzakki, currentPage])
+  const currentEntries = useMemo(
+    () => paginateMuzakki(filteredMuzakki, currentPage, ITEMS_PER_PAGE),
+    [filteredMuzakki, currentPage]
+  )
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value)
@@ -46,7 +55,7 @@ export default function DatabasePage() {
   }
 
   return (
-    <div className="p-6" style={{ color: 'black' }}>
+    <div className="p-6 text-black">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-semibold">Database Muzakki</h1>
         <Notifications />

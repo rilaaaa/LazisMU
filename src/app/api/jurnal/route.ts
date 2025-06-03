@@ -223,8 +223,8 @@ export async function POST(request: Request) {
             const row: KeyValue = {
                 ['nama']: header_index['nama'] !== -1 ? data_iter[header_index['nama']]?.trim() || '' : '',
                 ['no_hp']: header_index['telp/hp'] !== -1 ? data_iter[header_index['telp/hp']]?.trim() || '' : '',
-                ['tanggal']: header_index['tangal'] !== -1 ? data_iter[header_index['tangal']] || '' : '',
-                ['tahun']: header_index['tangal'] !== -1 ? extractYearFromDate(data_iter[header_index['tangal']]) : 0,
+                ['tanggal']: header_index['tanggal'] !== -1 ? data_iter[header_index['tanggal']] || '' : '',
+                ['tahun']: header_index['tahun'] !== -1 ? extractYearFromDate(data_iter[header_index['tahun']]) : 0,
                 ['zis']: '',
                 ['via']: header_index['via'] !== -1 ? data_iter[header_index['via']]?.trim() || '' : '',
                 ['sumber_dana']: header_index['keterangan'] !== -1 ? data_iter[header_index['keterangan']]?.trim() || '' : '',

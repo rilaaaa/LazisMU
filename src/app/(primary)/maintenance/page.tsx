@@ -157,17 +157,6 @@ export default function MaintenancePage() {
                   <th className="p-3">Aksi</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr className="border-t">
-                  <td className="p-3"><Checkbox /></td>
-                  <td className="p-3">Ahmad Fajar</td>
-                  <td className="p-3">081234567890</td>
-                  <td className="p-3 text-green-600 font-medium">Aktif</td>
-                  <td className="p-3">
-                    <Button size="sm" className="bg-orange-500 text-white hover:bg-orange-600">Kirim</Button>
-                  </td>
-                </tr>
-              </tbody>
             </table>
           </div>
         </>

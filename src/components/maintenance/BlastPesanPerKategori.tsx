@@ -24,14 +24,6 @@ export default function BlastPesanPerKategori({ kategori, onBack }: Props) {
   const [selectedMuzakki, setSelectedMuzakki] = useState<number[]>([]);
   const [pesan, setPesan] = useState('');
 
-  useEffect(() => {
-    const dummyData: Muzakki[] = [
-      { id: 1, name: 'Ahmad Fajar', phoneNumber: '081234567890' },
-      { id: 2, name: 'Siti Aisyah', phoneNumber: '089876543210' },
-    ];
-    setMuzakkiList(dummyData);
-  }, [kategori]);
-
   const toggleSelect = (id: number) => {
     setSelectedMuzakki((prev) =>
       prev.includes(id) ? prev.filter((mid) => mid !== id) : [...prev, id]

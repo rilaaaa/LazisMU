@@ -11,14 +11,15 @@ import ReminderTelatDonasi from '@/components/maintenance/ReminderTelatDonasi';
 
 interface Muzzaki {
   id: string;
-  nama: string;
-  no_hp: string;
+  name: string;
+  phoneNumber: string;
   status: string;
 }
 
 export default function MaintenancePage() {
   const [muzakkiList, setMuzakkiList] = useState<Muzzaki[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [showBlastPage, setShowBlastPage] = useState(false);
   const [showKategoriSelection, setShowKategoriSelection] = useState(false);
@@ -29,39 +30,61 @@ export default function MaintenancePage() {
   const [selectAll, setSelectAll] = useState(false);
   const [selectedItems, setSelectedItems] = useState<{ [key: string]: boolean }>({});
 
-  // ✅ Fetch data dari API
+  // ✅ Fetch data dari API dengan penanganan error yang lebih baik
   useEffect(() => {
-  const fetchMuzakki = async () => {
-    try {
-      const res = await fetch('/api/muzzaki');
-      const json = await res.json();
-      console.log('RESPON API:', json);
+    const fetchMuzakki = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetch('/api/muzzaki');
+        
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
 
-      // Pastikan ambil array-nya dengan benar
-      if (Array.isArray(json)) {
-        setMuzakkiList(json);
-      } else if (Array.isArray(json.data)) {
-        setMuzakkiList(json.data);
-      } else {
-        console.error('Format data tidak dikenali:', json);
-        setMuzakkiList([]); // fallback kosong
+        const data = await res.json();
+        console.log('Data dari API:', data);
+
+        // Cek berbagai kemungkinan struktur response
+        let muzakkiData: Muzzaki[] = [];
+        
+        if (Array.isArray(data)) {
+          muzakkiData = data;
+        } else if (Array.isArray(data.data)) {
+          muzakkiData = data.data;
+        } else if (data.data && typeof data.data === 'object') {
+          // Jika data berupa object, konversi ke array
+          muzakkiData = Object.values(data.data);
+        } else {
+          throw new Error('Format data tidak dikenali');
+        }
+
+        // Pastikan data memiliki struktur yang benar
+        const validatedData = muzakkiData.map(item => ({
+          id: item.id || '',
+          name: item.name || '',
+          phoneNumber: item.phoneNumber || '',
+          status: item.status || 'unknown'
+        }));
+
+        setMuzakkiList(validatedData);
+      } catch (err) {
+        console.error('Gagal fetch muzakki:', err);
+        setError(err instanceof Error ? err.message : 'Terjadi kesalahan');
+        setMuzakkiList([]);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Gagal fetch muzakki:', err);
-      setMuzakkiList([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-  fetchMuzakki();
-}, []);
-
+    };
+    
+    fetchMuzakki();
+  }, []);
 
   // ✅ Filter berdasarkan pencarian
   const filteredData = muzakkiList.filter(
     (item) =>
-      item.nama?.toLowerCase().includes(search.toLowerCase()) ||
-      item.no_hp?.includes(search)
+      item.name?.toLowerCase().includes(search.toLowerCase()) ||
+      item.phoneNumber?.includes(search)
   );
 
   const handleSelectAll = () => {
@@ -214,6 +237,20 @@ export default function MaintenancePage() {
           <div className="overflow-auto rounded-xl border shadow bg-white">
             {loading ? (
               <div className="p-6 text-center">Memuat data...</div>
+            ) : error ? (
+              <div className="p-6 text-center text-red-500">
+                Error: {error}
+                <Button 
+                  onClick={() => window.location.reload()}
+                  className="mt-2 bg-orange-500 hover:bg-orange-600 text-white"
+                >
+                  Coba Lagi
+                </Button>
+              </div>
+            ) : filteredData.length === 0 ? (
+              <div className="p-6 text-center">
+                {search ? 'Tidak ada hasil pencarian' : 'Tidak ada data muzakki'}
+              </div>
             ) : (
               <table className="min-w-full text-sm border-collapse">
                 <thead className="bg-gray-100 text-gray-700">
@@ -236,9 +273,21 @@ export default function MaintenancePage() {
                           onCheckedChange={() => handleSelectItem(item.id)}
                         />
                       </td>
-                      <td className="p-4 border-r font-medium text-gray-800 text-left">{item.nama}</td>
-                      <td className="p-4 border-r text-left">{item.no_hp}</td>
-                      <td className="p-4 border-r text-green-600 font-medium text-left">{item.status}</td>
+                      <td className="p-4 border-r font-medium text-gray-800 text-left">
+                        {item.name || '-'}
+                      </td>
+                      <td className="p-4 border-r text-left">
+                        {item.phoneNumber || '-'}
+                      </td>
+                      <td className="p-4 border-r text-left">
+                        <span className={`font-medium ${
+                          item.status === 'active' ? 'text-green-600' : 
+                          item.status === 'inactive' ? 'text-red-500' : 
+                          'text-gray-500'
+                        }`}>
+                          {item.status || 'unknown'}
+                        </span>
+                      </td>
                       <td className="p-4 text-left">
                         <Button
                           size="sm"

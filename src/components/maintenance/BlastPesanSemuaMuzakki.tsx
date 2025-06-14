@@ -11,10 +11,14 @@ const BlastPesanSemuaMuzakki: React.FC<Props> = ({ onBack }) => {
   const [message, setMessage] = useState('Assalamu’alaikum {nama}, Alhamdulillah, terima kasih');
   const [poster, setPoster] = useState<File | null>(null);
   const [isSent, setIsSent] = useState(false);
+  const [totalMuzakki, setTotalMuzakki] = useState<number>(300); // Ganti dengan dynamic jika tersedia
 
   const handlePosterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setPoster(e.target.files[0]);
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      setPoster(file);
+    } else {
+      alert('Mohon upload file gambar (.jpg, .png, dll)');
     }
   };
 
@@ -24,10 +28,16 @@ const BlastPesanSemuaMuzakki: React.FC<Props> = ({ onBack }) => {
       return;
     }
 
+    // TODO: Kirim data ke backend
     console.log('Poster:', poster);
     console.log('Pesan:', message);
+
     setIsSent(true);
-    alert('Pesan berhasil dikirim ke seluruh muzakki!');
+    alert(`Pesan berhasil dikirim ke seluruh muzakki (${totalMuzakki} orang)`);
+
+    // Opsional: reset state
+    // setMessage('');
+    // setPoster(null);
   };
 
   return (
@@ -73,7 +83,7 @@ const BlastPesanSemuaMuzakki: React.FC<Props> = ({ onBack }) => {
         {/* Info dan Tombol */}
         <div className="bg-gray-100 p-4 rounded-md flex items-center justify-between flex-wrap gap-3">
           <div>
-            <p className="font-medium">Total Penerima: 300 Muzakki</p>
+            <p className="font-medium">Total Penerima: {totalMuzakki} Muzakki</p>
             <p className="text-sm text-gray-600">Pesan akan dikirim ke nomor HP sesuai data muzakki</p>
           </div>
 

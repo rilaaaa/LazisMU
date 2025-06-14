@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -21,23 +21,43 @@ export default function ReminderTelatDonasi({ onBack }: Props) {
     `Assalamualaikum Warohmatullahi Wabarokatuh, Bapak/Ibu yang terhormat.\n\nTidak terasa kita sudah hampir di setengah Ramadhan tahun ini, mari kita intropeksi diri untuk tetap menjaga keimanan dan ketaqwaan kita pada Allah SWT.`
   );
 
-  // Dummy data muzakki telat donasi
-  const [muzakkiList, setMuzakkiList] = useState<Muzakki[]>([
-    { id: 1, nama: 'Fuandi', noHp: '081614875138', status: 'Telat Donasi', selected: false },
-    { id: 2, nama: 'Almaira', noHp: '085287564924', status: 'Telat Donasi', selected: false },
-    { id: 3, nama: 'Zaiman', noHp: '087254976233', status: 'Telat Donasi', selected: false },
-    { id: 4, nama: 'Alzalf', noHp: '081235792676', status: 'Telat Donasi', selected: false },
-    { id: 5, nama: 'Salmaunisa', noHp: '082762986485', status: 'Telat Donasi', selected: false },
-    { id: 6, nama: 'Izzana', noHp: '081555927352', status: 'Telat Donasi', selected: false },
-    { id: 7, nama: 'Al-Fahruni', noHp: '08276395631', status: 'Telat Donasi', selected: false },
-  ]);
+  const [muzakkiList, setMuzakkiList] = useState<Muzakki[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Pilih semua checkbox
+  // Fetch data dari API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch('/api/muzzaki?status=telat');
+        const json = await res.json();
+
+        const rawData = Array.isArray(json) ? json : json.data;
+
+        const parsed: Muzakki[] = rawData.map((item: any) => ({
+          id: item.id,
+          nama: item.nama || item.name || 'Tanpa Nama',
+          noHp: item.no_hp || item.noHp || '-',
+          status: 'Telat Donasi',
+          selected: false,
+        }));
+
+        setMuzakkiList(parsed);
+        setLoading(false);
+      } catch (err: any) {
+        console.error('Gagal mengambil data:', err);
+        setError('Gagal mengambil data muzakki');
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   const toggleSelectAll = (checked: boolean) => {
     setMuzakkiList((list) => list.map((m) => ({ ...m, selected: checked })));
   };
 
-  // Pilih per muzakki
   const toggleSelect = (id: number) => {
     setMuzakkiList((list) =>
       list.map((m) => (m.id === id ? { ...m, selected: !m.selected } : m))
@@ -51,15 +71,14 @@ export default function ReminderTelatDonasi({ onBack }: Props) {
       return;
     }
 
-    // Contoh: tampilkan hasil kirim (bisa diganti dengan API call)
+    // Contoh: tampilkan hasil kirim
     alert(
       `Mengirim reminder ke:\n${selectedMuzakki
         .map((m) => `${m.nama} (${m.noHp})`)
         .join('\n')}\n\nPesan:\n${pesan}`
     );
 
-    // Setelah kirim, bisa kembali ke halaman sebelumnya
-    onBack();
+    onBack(); // kembali setelah kirim
   };
 
   return (
@@ -83,49 +102,58 @@ export default function ReminderTelatDonasi({ onBack }: Props) {
       </div>
 
       {/* Daftar Muzakki */}
-      <div className="overflow-auto max-h-80 border rounded-lg">
-        <table className="min-w-full text-sm">
-          <thead className="bg-gray-100 sticky top-0">
-            <tr>
-              <th className="p-3 text-center">
-                <Checkbox
-                  checked={muzakkiList.every((m) => m.selected)}
-                  onCheckedChange={(checked) => toggleSelectAll(!!checked)}
-                />
-              </th>
-              <th className="p-3">Nama Muzakki</th>
-              <th className="p-3">Nomor HP</th>
-              <th className="p-3">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {muzakkiList.map((m) => (
-              <tr key={m.id} className="border-t">
-                <td className="p-3 text-center">
+      {loading ? (
+        <p>Memuat data muzakki...</p>
+      ) : error ? (
+        <p className="text-red-500">{error}</p>
+      ) : (
+        <div className="overflow-auto max-h-80 border rounded-lg">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-100 sticky top-0">
+              <tr>
+                <th className="p-3 text-center">
                   <Checkbox
-                    checked={m.selected}
-                    onCheckedChange={() => toggleSelect(m.id)}
+                    checked={muzakkiList.length > 0 && muzakkiList.every((m) => m.selected)}
+                    onCheckedChange={(checked) => toggleSelectAll(!!checked)}
                   />
-                </td>
-                <td className="p-3">{m.nama}</td>
-                <td className="p-3">{m.noHp}</td>
-                <td className="p-3">
-                  <span className="inline-block bg-orange-500 text-white rounded-full px-3 py-1 text-xs">
-                    {m.status}
-                  </span>
-                </td>
+                </th>
+                <th className="p-3">Nama Muzakki</th>
+                <th className="p-3">Nomor HP</th>
+                <th className="p-3">Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {muzakkiList.map((m) => (
+                <tr key={m.id} className="border-t">
+                  <td className="p-3 text-center">
+                    <Checkbox
+                      checked={m.selected}
+                      onCheckedChange={() => toggleSelect(m.id)}
+                    />
+                  </td>
+                  <td className="p-3">{m.nama}</td>
+                  <td className="p-3">{m.noHp}</td>
+                  <td className="p-3">
+                    <span className="inline-block bg-orange-500 text-white rounded-full px-3 py-1 text-xs">
+                      {m.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Tombol Batal dan Kirim */}
       <div className="mt-4 flex justify-end gap-4">
         <Button variant="outline" onClick={onBack}>
           Batal
         </Button>
-        <Button className="bg-orange-500 hover:bg-orange-600 text-white" onClick={handleKirim}>
+        <Button
+          className="bg-orange-500 hover:bg-orange-600 text-white"
+          onClick={handleKirim}
+        >
           Kirim
         </Button>
       </div>

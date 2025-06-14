@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Upload, X } from 'lucide-react';
+import { Upload, X, ArrowLeft } from 'lucide-react';
 
 interface Muzakki {
   id: number;
@@ -71,6 +71,17 @@ export default function ReminderTelatDonasi({ onBack }: Props) {
 
   return (
     <div className="bg-white p-6 rounded-xl shadow max-w-4xl mx-auto">
+      {/* Tombol Kembali */}
+      <div className="mb-4">
+        <Button
+          onClick={onBack}
+          className="bg-gray-200 text-black hover:bg-gray-300 rounded-xl px-4 py-2 flex items-center gap-2 shadow-sm"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span className="text-base font-normal">Kembali</span>
+        </Button>
+      </div>
+
       <h2 className="text-lg font-semibold mb-4">Reminder Telat Donasi</h2>
 
       <div className="mb-4 grid grid-cols-2 gap-6">

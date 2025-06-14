@@ -97,9 +97,7 @@ const BlastPesanSemuaMuzakki: React.FC<Props> = ({ onBack }) => {
             disabled={isSent}
             className="h-40"
           />
-          <p className="text-xs text-gray-500 mt-2">
-            Gunakan <code>{'{nama}'}</code> untuk menyisipkan nama muzakki secara otomatis.
-          </p>
+          
         </div>
       </div>
 

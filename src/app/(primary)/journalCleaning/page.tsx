@@ -1,16 +1,14 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { PlusIcon, XCircleIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { XCircleIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import SearchBar from '@/components/common/SearchBar';
 import JournalTable from '@/components/journalCleaning/JournalTable';
 import JournalDetailTable from '@/components/journalCleaning/JournalDetailTable';
-import FileUploadModal from '@/components/common/FileUploadModal';
 import Notifications from '@/components/common/Notifications';
 import { useJournalEntries } from '@/hooks/useJournalEntries';
 import YearFilter from '@/components/common/YearFilter';
 import MonthFilter from '@/components/common/MonthFilter';
-import Pagination from '@/components/common/Pagination';
 import { JournalEntry } from '@/lib/types';
 import { getUniqueYears } from '@/lib/utils';
 

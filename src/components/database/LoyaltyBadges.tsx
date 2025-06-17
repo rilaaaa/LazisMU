@@ -72,8 +72,8 @@ export default function LoyaltyBadges({ muzakkiData }: LoyaltyBadgesProps) {
       { type: 'Besar Jarang', count: calculateBadgeCount('Besar Jarang'), image: '/icon/regular.svg' },
       { type: 'Kecil Sering', count: calculateBadgeCount('Kecil Sering'), image: '/icon/generous.svg' },
       { type: 'Besar Sering', count: calculateBadgeCount('Besar Sering'), image: '/icon/major.svg' },
-      { type: 'Momentum', count: calculateBadgeCount('Momentum'), image: '/icon/momentum.png' },
-      { type: 'Calon', count: calculateBadgeCount('Calon'), image: '/icon/calon.png' },
+      { type: 'Momentum', count: calculateBadgeCount('Momentum'), image: '/icon/ikon.png' },
+      { type: 'Calon', count: calculateBadgeCount('Calon'), image: '/icon/IKONNNNN.png' },
     ];
   }, [muzakkiData]);
 
@@ -88,4 +88,3 @@ export default function LoyaltyBadges({ muzakkiData }: LoyaltyBadgesProps) {
     </section>
   )
 }
-

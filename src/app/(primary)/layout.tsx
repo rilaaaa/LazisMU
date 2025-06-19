@@ -5,6 +5,7 @@ import Loading from '@/components/common/Loading';
 import Sidebar from '@/components/layout/Sidebar';
 import SidebarTrigger from '@/components/layout/SidebarTrigger';
 import dynamic from 'next/dynamic';
+import ChatbotPopup from '@/components/chatbot/chatbot';
 
 const RouteChangeHandler = dynamic(() => import('./RouteChangeHandler'), { ssr: false });
 
@@ -26,6 +27,7 @@ export default function DashboardLayout({
           </main>
         </Suspense>
       </div>
+      <ChatbotPopup />
       <SidebarTrigger isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
     </div>
   );

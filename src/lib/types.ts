@@ -85,6 +85,7 @@ export type JurnalRow = {
 };
 
 export type JurnalDataRow = {
+  sumber_dana: any;
   id: number;
   nama: string;
   no_hp?: string;

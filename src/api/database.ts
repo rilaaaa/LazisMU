@@ -1,5 +1,9 @@
 const API_HOST = process.env.NEXT_PUBLIC_API_HOST || '';
 
+export async function askAI() {
+  return await fetchData('/api/chatbot', 'Failed to connect AI');
+}
+
 export async function getMuzakki() {
   return await fetchData('/api/muzzaki', 'Failed to fetch muzzaki data');
 }
@@ -60,11 +64,16 @@ export async function uploadJurnal(data: MuzzakiJurnalUploadData): Promise<boole
 async function fetchData(endpoint: string, errorMessage: string) {
   try {
     const res = await fetch(`${API_HOST}${endpoint}`);
-    if (!res.ok) throw new Error(errorMessage);
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error(`Fetch error: ${res.status} ${res.statusText}`);
+      console.error(`Response body: ${errorText}`);
+      throw new Error(errorMessage);
+    }
     const data = await res.json();
     return data.data;
   } catch (err) {
-    console.error(err);
+    console.error('fetchData catch block:', err);
     return [];
   }
 }

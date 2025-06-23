@@ -34,6 +34,12 @@ export type MuzzakiJurnalUploadData = {
   attachment_name: string;
   attachment_base64: string;
   jenisJurnal: string;
+  data?: {
+    nama: string;
+    hp: string;
+    jumlah: number;
+    kategori: string;
+  }[];
 };
 
 export async function uploadJurnal(data: MuzzakiJurnalUploadData): Promise<boolean> {
@@ -56,13 +62,16 @@ export async function uploadJurnal(data: MuzzakiJurnalUploadData): Promise<boole
   }
 }
 
-// Helper function
+// ✅ Helper function untuk fetch data dari API
 async function fetchData(endpoint: string, errorMessage: string) {
   try {
     const res = await fetch(`${API_HOST}${endpoint}`);
-    if (!res.ok) throw new Error(errorMessage);
-    const data = await res.json();
-    return data.data;
+    const text = await res.text(); // untuk debugging error
+    if (!res.ok) throw new Error(`${errorMessage}: ${text}`);
+
+    const data = JSON.parse(text);
+    // ✅ dukung dua bentuk: { data: [...] } atau langsung array/object
+    return data.data ?? data;
   } catch (err) {
     console.error(err);
     return [];

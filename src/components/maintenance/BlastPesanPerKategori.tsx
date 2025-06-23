@@ -29,20 +29,17 @@ export default function BlastPesanPerKategori({ onBack }: Props) {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    const fetchMuzakki = async () => {
-      try {
-        const response = await fetch('/api/muzakki');
-        const data = await response.json();
-        setMuzakkiList(data);
-      } catch (error) {
-        console.error('Gagal fetch data muzakki:', error);
-      }
-    };
-
-    fetchMuzakki();
+    const dummyData: Muzakki[] = [
+      { id: 1, name: 'Ahmad Fauzi', phoneNumber: '628123456789', donorType: 'Calon' },
+      { id: 2, name: 'Siti Aminah', phoneNumber: '628223456789', donorType: 'Momentum' },
+      { id: 3, name: 'Budi Santoso', phoneNumber: '628323456789', donorType: 'Besar Sering' },
+      { id: 4, name: 'Dewi Lestari', phoneNumber: '628423456789', donorType: 'Kecil Jarang' },
+      { id: 5, name: 'Andi Wijaya', phoneNumber: '628523456789', donorType: 'Kecil Sering' },
+      { id: 6, name: 'Rina Marlina', phoneNumber: '628623456789', donorType: 'Besar Jarang' },
+    ];
+    setMuzakkiList(dummyData);
   }, []);
 
-  // ✅ Filtering berdasarkan jenis_donatur, bukan klasifikasi
   const filteredMuzakki = muzakkiList.filter(
     (m) =>
       m.donorType === selectedTab &&
@@ -109,7 +106,7 @@ export default function BlastPesanPerKategori({ onBack }: Props) {
             onClick={() => {
               setSelectedTab(k);
               setSelectedMuzakki([]);
-              setSelectAll(false);    
+              setSelectAll(false);
             }}
             className={`rounded-full px-4 py-2 text-sm font-medium border transition 
               ${selectedTab === k

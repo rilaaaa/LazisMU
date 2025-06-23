@@ -51,16 +51,15 @@ export default function JournalPage() {
   };
 
   const filteredDetailEntries = useMemo(() => {
-    if (!selectedJournal) return [];
-    return selectedJournal.JurnalData.filter(data => 
-      data.nama.toLowerCase().includes(detailSearchTerm.toLowerCase()) ||
-      data.no_hp.toLowerCase().includes(detailSearchTerm.toLowerCase()) ||
-      data.zis.toLowerCase().includes(detailSearchTerm.toLowerCase()) ||
-      data.via.toLowerCase().includes(detailSearchTerm.toLowerCase()) ||
-      data.tahun.toString().includes(detailSearchTerm.toLowerCase()) ||
-      data.jenis_donatur.toLowerCase().includes(detailSearchTerm.toLowerCase())
-    );
-  }, [selectedJournal, detailSearchTerm]);
+  if (!selectedJournal || !Array.isArray(selectedJournal.JurnalDataCleanings)) return [];
+
+  return selectedJournal.JurnalDataCleanings.filter(data =>
+    data.nama?.toLowerCase().includes(detailSearchTerm.toLowerCase()) ||
+    data.no_hp?.toLowerCase().includes(detailSearchTerm.toLowerCase()) ||
+    data.zis?.toLowerCase().includes(detailSearchTerm.toLowerCase())
+  );
+}, [selectedJournal, detailSearchTerm]);
+
 
   const paginatedEntries = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;

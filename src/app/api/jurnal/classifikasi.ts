@@ -10,7 +10,7 @@ export class DonationClassifier {
     for (const row of input) {
       let is_valid = true;
       for (const field of column_must_not_null) {
-        if (!Object.keys(row).includes(field)) {
+        if (!Object.keys(row).includes(field) || row[field] == null) {
           is_valid = false;
           break;
         }
@@ -20,7 +20,7 @@ export class DonationClassifier {
       }
     }
 
-    // Hapus duplikat
+    // Remove duplicates
     const unique_data: KeyValue[] = [];
     const unique_data_map: { [key: string]: boolean } = {};
     for (const row of data) {
@@ -31,15 +31,17 @@ export class DonationClassifier {
       }
     }
 
-    // Tentukan kategori
+    // Determine category
     for (const row of unique_data) {
       const sumber = (row['sumber_dana'] as string).toLowerCase().trim();
       if (sumber === 'zakat') {
         row['kategori'] = 'Zakat';
       } else if (sumber.includes('infaq')) {
         row['kategori'] = 'Infaq';
-      } else {
+      } else if (sumber.includes('donasi')) { 
         row['kategori'] = 'Momentum';
+      } else {
+        row['kategori'] = 'Tidak Diketahui'; 
       }
     }
 

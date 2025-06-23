@@ -1,130 +1,147 @@
-import Sequelize from 'sequelize';
+import { Sequelize, DataTypes } from 'sequelize';
 
-export const Database = new Sequelize.Sequelize({
-    dialect: 'sqlite',
-    storage: './test/db.sqlite3',
+export const Database = new Sequelize('lazismu', 'postgres', 'lintang', {
+    host: 'localhost',
+    dialect: 'postgres',
     logging: false,
+    // port: 5432, // jika pakai port custom
 });
 
-export const Jurnal = Database.define('Jurnal', {
+export const Jurnal = Database.define('jurnals', {
     id: {
-        type: Sequelize.INTEGER,
+        type: DataTypes.INTEGER,
         autoIncrement: true,
         primaryKey: true
     },
     name: {
-        type: Sequelize.STRING,
+        type: DataTypes.STRING,
         allowNull: false
     },
     jenisJurnal: {
-        type: Sequelize.STRING,
+        type: DataTypes.STRING,
         allowNull: false
     }
 });
 
 export const JurnalData = Database.define('JurnalData', {
     id: {
-        type: Sequelize.INTEGER,
+        type: DataTypes.INTEGER,
         autoIncrement: true,
         primaryKey: true
     },
     jurnal_id: {
-        type: Sequelize.INTEGER,
+        type: DataTypes.INTEGER,
         references: {
             model: Jurnal,
             key: 'id'
         }
     },
     nama: {
-        type: Sequelize.STRING,
+        type: DataTypes.STRING,
         allowNull: false
     },
     no_hp: {
-        type: Sequelize.STRING,
+        type: DataTypes.STRING,
         allowNull: false
     },
     tanggal: {
-        type: Sequelize.DATE,
+        type: DataTypes.DATE,
         allowNull: false
     },
     tahun: {
-        type: Sequelize.INTEGER,
+        type: DataTypes.INTEGER,
         allowNull: false
     },
     zis: {
-        type: Sequelize.STRING,
+        type: DataTypes.STRING,
         allowNull: false
     },
     via: {
-        type: Sequelize.STRING,
+        type: DataTypes.STRING,
         allowNull: false
     },
     sumber_dana: {
-        type: Sequelize.STRING,
+        type: DataTypes.STRING,
         allowNull: false
     },
     nominal: {
-        type: Sequelize.FLOAT,
+        type: DataTypes.FLOAT,
         allowNull: false
     },
     jenis_donatur: {
-        type: Sequelize.STRING,
+        type: DataTypes.STRING,
         allowNull: false
     }
 });
 
 export const JurnalDataCleaning = Database.define('JurnalDataCleanings', {
     id: {
-        type: Sequelize.INTEGER,
+        type: DataTypes.INTEGER,
         autoIncrement: true,
         primaryKey: true
     },
     jurnal_id: {
-        type: Sequelize.INTEGER,
+        type: DataTypes.INTEGER,
         references: {
             model: Jurnal,
             key: 'id'
         }
     },
     nama: {
-        type: Sequelize.STRING,
+        type: DataTypes.STRING,
         allowNull: false
     },
     no_hp: {
-        type: Sequelize.STRING,
+        type: DataTypes.STRING,
         allowNull: false
     },
     tanggal: {
-        type: Sequelize.DATE,
+        type: DataTypes.DATE,
         allowNull: false
     },
     tahun: {
-        type: Sequelize.INTEGER,
+        type: DataTypes.INTEGER,
         allowNull: false
     },
     zis: {
-        type: Sequelize.STRING,
+        type: DataTypes.STRING,
         allowNull: false
     },
     via: {
-        type: Sequelize.STRING,
+        type: DataTypes.STRING,
         allowNull: false
     },
     sumber_dana: {
-        type: Sequelize.STRING,
+        type: DataTypes.STRING,
         allowNull: false
     },
     nominal: {
-        type: Sequelize.FLOAT,
+        type: DataTypes.FLOAT,
         allowNull: false
     },
     jenis_donatur: {
-        type: Sequelize.STRING,
+        type: DataTypes.STRING,
         allowNull: false
     }
 });
 
+// Hubungan antar tabel
 Jurnal.hasMany(JurnalData, { foreignKey: 'jurnal_id' });
 JurnalData.belongsTo(Jurnal, { foreignKey: 'jurnal_id' });
 
-Database.sync().then(() => {});
+// Optional kalau ingin relasi juga ke tabel cleanings
+Jurnal.hasMany(JurnalDataCleaning, { foreignKey: 'jurnal_id' });
+JurnalDataCleaning.belongsTo(Jurnal, { foreignKey: 'jurnal_id' });
+
+export { Sequelize, DataTypes };
+
+export default Database;
+
+// Sync DB
+Database.sync()
+    .then(() => {
+        console.log('Database connected and synced');
+    })
+    .catch((err) => {
+        console.error('Error syncing database:', err);
+    });

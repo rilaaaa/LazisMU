@@ -13,6 +13,7 @@ interface Muzzaki {
   id: string;
   name: string;
   phoneNumber: string;
+  transactions?: { date: string; amount: number }[];
 }
 
 export default function MaintenancePage() {
@@ -52,9 +53,11 @@ export default function MaintenancePage() {
           id: item.id || '',
           name: item.name || '',
           phoneNumber: item.phoneNumber || '',
+          transactions: item.transactions || []
         }));
 
         setMuzakkiList(validatedData);
+        fetchTelatDonasiCount(validatedData);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Terjadi kesalahan');
         setMuzakkiList([]);
@@ -63,26 +66,39 @@ export default function MaintenancePage() {
       }
     };
 
-    const fetchTelatDonasiCount = async () => {
-      try {
-        const res = await fetch('/api/jurnal');
-        if (!res.ok) throw new Error('Gagal mengambil data reminder');
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setTelatDonasiCount(data.length);
-        } else if (Array.isArray(data.data)) {
-          setTelatDonasiCount(data.data.length);
-        } else {
-          setTelatDonasiCount(0);
-        }
-      } catch (err) {
-        console.error('Gagal fetch data telat donasi:', err);
-        setTelatDonasiCount(0);
-      }
+    const fetchTelatDonasiCount = (data: Muzzaki[]) => {
+      const telat = data.filter((muzakki) => {
+        const transactions = (muzakki.transactions || [])
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        if (transactions.length < 3) return false;
+
+        const [first, second, third] = transactions;
+        const firstDate = new Date(first.date);
+        const secondDate = new Date(second.date);
+        const thirdDate = new Date(third.date);
+
+        const dayDiff1 = Math.abs(firstDate.getDate() - secondDate.getDate());
+        const dayDiff2 = Math.abs(secondDate.getDate() - thirdDate.getDate());
+
+        const isConsecutiveMonths =
+          (firstDate.getMonth() - secondDate.getMonth() === 1 ||
+            (firstDate.getMonth() === 0 && secondDate.getMonth() === 11)) &&
+          (secondDate.getMonth() - thirdDate.getMonth() === 1 ||
+            (secondDate.getMonth() === 0 && thirdDate.getMonth() === 11));
+
+        const currentMonth = new Date().getMonth();
+        const hasCurrentMonthDonation = transactions.some(
+          (t) => new Date(t.date).getMonth() === currentMonth
+        );
+
+        return dayDiff1 <= 2 && dayDiff2 <= 2 && isConsecutiveMonths && !hasCurrentMonthDonation;
+      });
+
+      setTelatDonasiCount(telat.length);
     };
 
     fetchMuzakki();
-    fetchTelatDonasiCount();
   }, []);
 
   const filteredData = muzakkiList.filter(
@@ -106,18 +122,17 @@ export default function MaintenancePage() {
         <BlastPesanPerKategori
           kategori="Semua Kategori"
           onBack={() => setShowBlastPerKategoriPage(false)}
+          muzakkiList={muzakkiList}
         />
       ) : showReminderPage ? (
         <ReminderTelatDonasi onBack={() => setShowReminderPage(false)} />
       ) : (
         <>
-          {/* Header */}
           <div className="flex justify-between items-center mb-4">
             <h1 className="text-2xl font-semibold">Maintenance Muzakki</h1>
             <Notifications />
           </div>
 
-          {/* Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div className="border p-4 rounded-xl shadow bg-white">
               <h2 className="font-semibold mb-1">Pesan Massal</h2>
@@ -152,7 +167,6 @@ export default function MaintenancePage() {
             </div>
           </div>
 
-          {/* Search */}
           <div className="flex justify-end mb-4">
             <div className="relative w-full max-w-xs">
               <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
@@ -170,7 +184,6 @@ export default function MaintenancePage() {
             </div>
           </div>
 
-          {/* Table */}
           <div className="overflow-auto rounded-xl border shadow bg-white">
             {loading ? (
               <div className="p-6 text-center">Memuat data...</div>

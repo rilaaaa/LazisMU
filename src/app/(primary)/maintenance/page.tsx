@@ -53,8 +53,10 @@ export default function MaintenancePage() {
           id: item.id || '',
           name: item.name || '',
           phoneNumber: item.phoneNumber || '',
+          donorType: item.donorType || item.kategori || 'Calon',
           transactions: item.transactions || []
-        }));
+    }));
+
 
         setMuzakkiList(validatedData);
         fetchTelatDonasiCount(validatedData);

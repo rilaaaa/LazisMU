@@ -13,6 +13,7 @@ import MonthFilter from '@/components/common/MonthFilter';
 import Pagination from '@/components/common/Pagination';
 import { JournalEntry } from '@/lib/types';
 import { getUniqueYears } from '@/lib/utils';
+import { ArrowDownAZIcon } from 'lucide-react'; 
 
 export default function JournalPage() {
   const {
@@ -136,12 +137,12 @@ export default function JournalPage() {
           />
 
           <a
-            href="/template-jurnal.xlsx"
+            href="/1. Laporan FO Bulan Januari 2023.xlsx"
             download
-            className="flex items-center gap-1 bg-green-600 text-white px-4 py-2 text-sm font-medium rounded-md hover:bg-green-700"
+            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 text-sm font-medium rounded-md hover:bg-green-700"
           >
-            <ArrowDownTrayIcon className="h-4 w-4" />
-            Template
+          <ArrowDownTrayIcon className="h-4 w-4" />
+          Template
           </a>
 
           <button

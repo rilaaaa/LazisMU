@@ -5,7 +5,7 @@ export type KeyValue = {
 export class DonationClassifier {
   preprocess_data(input: KeyValue[]) {
     const column_must_not_null = ['nama', 'sumber_dana', 'nominal', 'tanggal'];
-    const data = [];
+    const data: KeyValue[] = [];
 
     for (const row of input) {
       let is_valid = true;
@@ -34,14 +34,14 @@ export class DonationClassifier {
     // Determine category
     for (const row of unique_data) {
       const sumber = (row['sumber_dana'] as string).toLowerCase().trim();
-      if (sumber === 'zakat') {
+      if (sumber.includes('zakat')) {
         row['kategori'] = 'Zakat';
       } else if (sumber.includes('infaq')) {
         row['kategori'] = 'Infaq';
-      } else if (sumber.includes('donasi')) { 
+      } else if (sumber.includes('donasi')) {
         row['kategori'] = 'Momentum';
       } else {
-        row['kategori'] = 'Tidak Diketahui'; 
+        row['kategori'] = 'Tidak Diketahui';
       }
     }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -8,6 +8,7 @@ import { ArrowLeft, Upload, X, Search } from 'lucide-react';
 
 interface Props {
   onBack: () => void;
+  muzakkiList: Muzakki[];
 }
 
 interface Muzakki {
@@ -15,30 +16,18 @@ interface Muzakki {
   name: string;
   phoneNumber: string;
   donorType: string;
+  kategori?: string;
 }
 
-export default function BlastPesanPerKategori({ onBack }: Props) {
+export default function BlastPesanPerKategori({ onBack, muzakkiList }: Props) {
   const kategoriList = ['Calon', 'Momentum', 'Besar Sering', 'Besar Jarang', 'Kecil Sering', 'Kecil Jarang'];
   const [selectedTab, setSelectedTab] = useState('Calon');
-  const [muzakkiList, setMuzakkiList] = useState<Muzakki[]>([]);
   const [selectedMuzakki, setSelectedMuzakki] = useState<number[]>([]);
   const [selectAll, setSelectAll] = useState(false);
   const [pesan, setPesan] = useState('');
   const [poster, setPoster] = useState<File | null>(null);
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-
-  useEffect(() => {
-    const dummyData: Muzakki[] = [
-      { id: 1, name: 'Ahmad Fauzi', phoneNumber: '628123456789', donorType: 'Calon' },
-      { id: 2, name: 'Siti Aminah', phoneNumber: '628223456789', donorType: 'Momentum' },
-      { id: 3, name: 'Budi Santoso', phoneNumber: '628323456789', donorType: 'Besar Sering' },
-      { id: 4, name: 'Dewi Lestari', phoneNumber: '628423456789', donorType: 'Kecil Jarang' },
-      { id: 5, name: 'Andi Wijaya', phoneNumber: '628523456789', donorType: 'Kecil Sering' },
-      { id: 6, name: 'Rina Marlina', phoneNumber: '628623456789', donorType: 'Besar Jarang' },
-    ];
-    setMuzakkiList(dummyData);
-  }, []);
 
   const filteredMuzakki = muzakkiList.filter(
     (m) =>
@@ -170,7 +159,7 @@ export default function BlastPesanPerKategori({ onBack }: Props) {
           <thead className="bg-gray-100 text-left font-semibold border-b border-gray-300">
             <tr>
               <th className="p-4 w-12 text-center border-r border-gray-300">
-                <Checkbox checked={selectAll} onCheckedChange={toggleSelectAll} />
+                <Checkbox checked={selectAll} onCheckedChange={() => toggleSelectAll()} />
               </th>
               <th className="p-4 border-r border-gray-300">Nama</th>
               <th className="p-4 border-r border-gray-300">No. HP</th>
@@ -202,7 +191,8 @@ export default function BlastPesanPerKategori({ onBack }: Props) {
                         className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-1 rounded"
                         onClick={() =>
                           window.open(
-                            `https://wa.me/${m.phoneNumber}?text=${encodeURIComponent(personalized)}`
+                            `https://wa.me/${m.phoneNumber}?text=${encodeURIComponent(personalized)}`,
+                            '_blank'
                           )
                         }
                       >

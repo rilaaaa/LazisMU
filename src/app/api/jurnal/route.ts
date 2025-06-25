@@ -339,157 +339,115 @@ export async function DELETE(request: Request) {
 }
 
 async function moveToCleaning(jurnalId: string, transaction?: any) {
-    try {
-        if (!jurnalId) throw new Error('Journal ID is required');
-        
-        const options = transaction ? { transaction } : {};
-        
-        // Verify journal exists
-        const journalExists = await Jurnal.findByPk(jurnalId, options);
-        if (!journalExists) throw new Error('Journal not found');
+  try {
+    if (!jurnalId) throw new Error('Journal ID is required');
+    const options = transaction ? { transaction } : {};
 
-        // Get current journal data that will be processed
-        const currentJournalData = await JurnalData.findAll({ 
-            where: { jurnal_id: jurnalId },
-            raw: true,
-            ...options
-        });
+    const allData = await JurnalData.findAll({ raw: true, ...options });
 
-        if (currentJournalData.length === 0) {
-            console.log('No data found for journal:', jurnalId);
-            return {
-                status: 'success',
-                message: 'No data to process',
-                count: 0
-            };
-        }
-
-        // Get unique phone numbers from current journal
-        const currentPhoneNumbers = [...new Set(
-            currentJournalData
-                .map((d: any) => normalizePhoneNumber(d.no_hp || ''))
-                .filter(phone => phone && phone !== '62')
-        )];
-
-        if (currentPhoneNumbers.length === 0) {
-            console.log('No valid phone numbers found');
-            return {
-                status: 'success',
-                message: 'No valid phone numbers to process',
-                count: 0
-            };
-        }
-
-        // Get ALL jurnal data with matching phone numbers from ALL journals (only from JurnalData)
-        const allMatchingData = await JurnalData.findAll({
-            where: {
-                [Op.or]: currentPhoneNumbers.map(phone => ({
-                    [Op.or]: [
-                        { no_hp: phone },
-                        { no_hp: phone.startsWith('62') ? '0' + phone.substring(2) : '62' + phone.substring(1) }
-                    ]
-                }))
-            },
-            raw: true,
-            ...options
-        });
-
-        // Group by normalized phone number
-        const groupedData: { [no_hp: string]: any[] } = {};
-        
-        for (const data of allMatchingData) {
-            const no_hp = (data as any).no_hp !== undefined ? (data as any).no_hp : '';
-            const normalizedPhone = normalizePhoneNumber(no_hp || '');
-            if (!normalizedPhone || normalizedPhone === '62') continue;
-            
-            if (!groupedData[normalizedPhone]) {
-                groupedData[normalizedPhone] = [];
-            }
-            groupedData[normalizedPhone].push(data);
-        }
-
-        // Create cleaning data
-        const cleaningData: any[] = [];
-
-        for (const [no_hp, entries] of Object.entries(groupedData)) {
-            // Skip if this phone number is not in current journal
-            const hasCurrentJournalEntry = entries.some(entry => entry.jurnal_id === jurnalId);
-            if (!hasCurrentJournalEntry) continue;
-
-            // Calculate average nominal from all entries with same phone number
-            const validEntries = entries.filter(entry => entry.nominal && entry.nominal > 0);
-            const totalNominal = validEntries.reduce((sum, entry) => sum + (entry.nominal || 0), 0);
-            const entryCount = validEntries.length;
-            const avgNominal = entryCount > 0 ? Math.round(totalNominal / entryCount) : 0;
-
-            // Find the most complete name (longest non-empty name)
-            const validNames = entries
-                .map(entry => entry.nama?.trim())
-                .filter(nama => nama && nama.length > 0);
-            const longestNama = validNames.reduce((longest, current) => 
-                current.length > longest.length ? current : longest, '');
-
-            // Combine unique sumber_dana values from JurnalData only
-            const uniqueSumberDana = [...new Set(
-                entries
-                    .map(entry => entry.sumber_dana?.trim())
-                    .filter(sumber => sumber && sumber.length > 0)
-            )];
-            const combinedSumberDana = uniqueSumberDana.join(' / ');
-
-            // Get most recent entry for other reference data
-            const sortedEntries = entries.sort((a, b) => {
-                const dateA = new Date(a.tanggal || a.created_at || new Date());
-                const dateB = new Date(b.tanggal || b.created_at || new Date());
-                return dateB.getTime() - dateA.getTime();
-            });
-            const mostRecentEntry = sortedEntries[0];
-
-            cleaningData.push({
-                jurnal_id: jurnalId,
-                nama: longestNama || mostRecentEntry.nama || '',
-                no_hp: no_hp,
-                tanggal: mostRecentEntry.tanggal || new Date(),
-                tahun: mostRecentEntry.tahun || new Date().getFullYear(),
-                zis: mostRecentEntry.zis || '',
-                via: mostRecentEntry.via || '',
-                sumber_dana: combinedSumberDana || mostRecentEntry.sumber_dana || '',
-                nominal: avgNominal,
-                jenis_donatur: mostRecentEntry.jenis_donatur || '',
-                cleaned: false,
-                notes: `Average from ${entryCount} donations across all journals`,
-                created_at: new Date(),
-                updated_at: new Date()
-            });
-        }
-
-        // Delete existing cleaning data for current journal only
-        await JurnalDataCleaning.destroy({
-            where: { jurnal_id: jurnalId },
-            ...options
-        });
-
-        // Insert new cleaning data
-        let result = [];
-        if (cleaningData.length > 0) {
-            result = await JurnalDataCleaning.bulkCreate(cleaningData, {
-                ...options,
-                validate: true
-            });
-        }
-
-        console.log(`Successfully processed ${result.length} unique muzaki for journal ${jurnalId}`);
-
-        return {
-            status: 'success',
-            message: `Successfully processed ${result.length} unique muzaki`,
-            count: result.length,
-            processedPhones: currentPhoneNumbers.length,
-            totalOriginalEntries: currentJournalData.length
-        };
-
-    } catch (error) {
-        console.error('Error in moveToCleaning:', error);
-        throw new Error(`Failed to process cleaning data: ${error instanceof Error ? error.message : String(error)}`);
+    function normalizePhoneNumber(phone: string): string {
+      phone = phone.replace(/\D/g, '');
+      if (phone.startsWith('0')) return '62' + phone.slice(1);
+      if (phone.startsWith('620')) return '62' + phone.slice(3);
+      if (phone.startsWith('62')) return phone;
+      if (phone.startsWith('8')) return '62' + phone;
+      return phone;
     }
+
+    const grouped: { [no_hp: string]: any[] } = {};
+    for (const entry of allData) {
+      const phone = normalizePhoneNumber(entry.no_hp || '');
+      if (!phone || phone === '62') continue;
+      if (!grouped[phone]) grouped[phone] = [];
+      grouped[phone].push(entry);
+    }
+
+    const classifier = new DonationClassifier();
+    const result: any[] = [];
+
+    for (const [no_hp, entries] of Object.entries(grouped)) {
+      const sorted = entries
+        .filter(e => e.tanggal)
+        .sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
+
+      const latest = sorted[0];
+      if (!latest || latest.jurnal_id !== jurnalId) continue;
+
+      const relatedEntries = entries.filter(e =>
+        e.tanggal && new Date(e.tanggal).getTime() <= new Date(latest.tanggal).getTime()
+      );
+
+      const validEntries = relatedEntries.filter(e => e.nominal && e.nominal > 0);
+      const totalNominal = validEntries.reduce((sum, e) => sum + e.nominal, 0);
+      const avgNominal = validEntries.length ? Math.round(totalNominal / validEntries.length) : 0;
+
+      const namaTerpanjang = relatedEntries
+        .map(e => e.nama?.trim())
+        .filter(Boolean)
+        .reduce((a, b) => (b.length > a.length ? b : a), '');
+
+      const sumberGabungan = relatedEntries
+        .map(e => e.sumber_dana?.trim())
+        .filter(Boolean)
+        .join(' / ');
+
+      const sumberTerakhir = (latest.sumber_dana || '').toLowerCase().trim();
+      let kategori = 'Tidak Diketahui';
+      if (sumberTerakhir.includes('zakat')) kategori = 'Zakat';
+      else if (sumberTerakhir.includes('infaq')) kategori = 'Infaq';
+      else if (sumberTerakhir.includes('donasi')) kategori = 'Momentum';
+
+      const c1 = classifier.kategori_muzaki({ ...latest, kategori });
+      const c2 = (kategori === 'Zakat' && validEntries.length >= 3) ||
+                 (kategori === 'Infaq' && validEntries.length >= 3) ? 'Sering' : 'Jarang';
+
+      const jenis_donatur = (kategori === 'Momentum')
+        ? 'Momentum'
+        : validEntries.length === 1 ? 'Calon' : `${c1} ${c2}`;
+
+      result.push({
+        jurnal_id: jurnalId,
+        nama: namaTerpanjang || latest.nama || '',
+        no_hp,
+        tanggal: latest.tanggal || new Date(),
+        tahun: latest.tahun || new Date().getFullYear(),
+        zis: latest.zis || '',
+        via: latest.via || '',
+        sumber_dana: sumberGabungan || latest.sumber_dana || '',
+        nominal: avgNominal,
+        jenis_donatur,
+        cleaned: false,
+        notes: `Rata-rata dari ${validEntries.length} transaksi gabungan`,
+        created_at: new Date(),
+        updated_at: new Date()
+      });
+    }
+
+    // ✨ HAPUS semua entry cleaning sebelumnya dari no_hp yang sama
+    const noHpList = result.map(r => r.no_hp);
+    if (noHpList.length > 0) {
+      await JurnalDataCleaning.destroy({
+        where: { no_hp: noHpList },
+        ...options,
+      });
+    }
+
+    // ✅ Insert hasil terbaru
+    if (result.length > 0) {
+      await JurnalDataCleaning.bulkCreate(result, {
+        ...options,
+        validate: true
+      });
+    }
+
+    return {
+      status: 'success',
+      message: `Cleaned ${result.length} donatur. Entry lama yang bentrok sudah dihapus.`,
+      count: result.length
+    };
+
+  } catch (err) {
+    console.error('❌ Error in moveToCleaning:', err);
+    throw new Error('Gagal membersihkan data: ' + (err instanceof Error ? err.message : String(err)));
+  }
 }

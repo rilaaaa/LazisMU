@@ -1,22 +1,24 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Upload, X, ArrowLeft, Search } from 'lucide-react';
 
+interface DonationHistory {
+  month: string;
+  year: number;
+  amount: number;
+}
+
 interface Muzakki {
-  id: number;
+  id: number | string;
   name: string;
   phoneNumber: string;
   lastDonationDate: string;
   status: string;
   selected: boolean;
-  donationHistory: {
-    month: string;
-    year: number;
-    amount: number;
-  }[];
+  donationHistory: DonationHistory[];
 }
 
 interface Props {
@@ -36,123 +38,94 @@ export default function ReminderTelatDonasi({ onBack }: Props) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchMuzakkiData = async () => {
+    const fetchReminderData = async () => {
+      setIsLoading(true);
       try {
-        setIsLoading(true);
         const response = await fetch('/api/muzzaki');
-        const result = await response.json();
+        const data = await response.json();
+        const donors = Array.isArray(data?.data) ? data.data : [];
 
-        // Ambil array data-nya (misal dari { data: [...] })
-        const data = Array.isArray(result) ? result : result.data;
-
-        if (!Array.isArray(data)) {
-          throw new Error('Format data dari API tidak sesuai, harus berupa array.');
-        }
-
-        const regularDonors = data.filter((donatur: any) => {
-          const lastTransactions = donatur.transactions
-            .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
-            .slice(0, 4);
-
-          if (lastTransactions.length < 3) return false;
-
-          const firstDate = new Date(lastTransactions[0].date);
-          const secondDate = new Date(lastTransactions[1].date);
-          const thirdDate = new Date(lastTransactions[2].date);
-
-          const dayDiff1 = Math.abs(firstDate.getDate() - secondDate.getDate());
-          const dayDiff2 = Math.abs(secondDate.getDate() - thirdDate.getDate());
-
-          const isConsecutiveMonths =
-            (firstDate.getMonth() - secondDate.getMonth() === 1 ||
-              (firstDate.getMonth() === 0 && secondDate.getMonth() === 11)) &&
-            (secondDate.getMonth() - thirdDate.getMonth() === 1 ||
-              (secondDate.getMonth() === 0 && thirdDate.getMonth() === 11));
-
-          const currentMonth = new Date().getMonth();
-          const hasCurrentMonthDonation = lastTransactions.some(
-            (t: any) => new Date(t.date).getMonth() === currentMonth
-          );
-
-          return dayDiff1 <= 2 && dayDiff2 <= 2 && isConsecutiveMonths && !hasCurrentMonthDonation;
-        });
-
-        const mappedData = regularDonors.map((donatur: any) => ({
-          id: donatur.id,
-          name: donatur.nama,
-          phoneNumber: donatur.no_hp,
-          lastDonationDate: donatur.transactions[0].date,
+        const mapped: Muzakki[] = donors.map((d: any) => ({
+          id: d.id || d.no_hp,
+          name: d.nama,
+          phoneNumber: d.no_hp,
+          lastDonationDate: d.last_donation_date || d.tanggal,
           status: 'Telat Donasi',
           selected: false,
-          donationHistory: donatur.transactions.slice(0, 3).map((t: any) => ({
-            month: new Date(t.date).toLocaleString('id-ID', { month: 'long' }),
-            year: new Date(t.date).getFullYear(),
-            amount: t.amount,
-          })),
+          donationHistory: d.riwayat?.map((r: any) => ({
+            month: r.bulan,
+            year: r.tahun,
+            amount: r.nominal || 0
+          })) || []
         }));
 
-        setMuzakkiList(mappedData);
-        setFilteredMuzakki(mappedData);
-      } catch (error) {
-        console.error('Error fetching data:', error);
+        setMuzakkiList(mapped);
+        setFilteredMuzakki(mapped);
+      } catch (err) {
+        console.error(err);
+        setMuzakkiList([]);
+        setFilteredMuzakki([]);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchMuzakkiData();
+    fetchReminderData();
   }, []);
 
   useEffect(() => {
-    const filtered = muzakkiList.filter((m) =>
-      m.name.toLowerCase().includes(search.toLowerCase()) ||
+    const filtered = muzakkiList.filter(m => 
+      m.name.toLowerCase().includes(search.toLowerCase()) || 
       m.phoneNumber.includes(search)
     );
     setFilteredMuzakki(filtered);
   }, [search, muzakkiList]);
 
-  const toggleSelect = (id: number) => {
-    setMuzakkiList((list) =>
-      list.map((m) => (m.id === id ? { ...m, selected: !m.selected } : m))
-    );
-  };
-
-  const toggleSelectAll = (checked: boolean | 'indeterminate') => {
-    if (typeof checked === 'boolean') {
-      setSelectAll(checked);
-      setMuzakkiList((list) => list.map((m) => ({ ...m, selected: checked })));
-    }
-  };
-
-  const handlePosterUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePosterUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setPosterFile(file);
       setPreviewUrl(URL.createObjectURL(file));
     }
-  };
+  }, []);
 
-  const handleKirim = () => {
-    const selected = muzakkiList.filter((m) => m.selected);
-    if (selected.length === 0) {
-      alert('Pilih minimal satu muzakki yang ingin dikirimi reminder.');
-      return;
-    }
+  const toggleSelectAll = useCallback((checked: boolean) => {
+    setSelectAll(checked);
+    setMuzakkiList(prev => prev.map(m => ({ ...m, selected: checked })));
+    setFilteredMuzakki(prev => prev.map(m => ({ ...m, selected: checked })));
+  }, []);
 
-    selected.forEach((m) => {
-      const personalizedMessage = pesan.replace(/{{nama}}/gi, m.name);
+  const toggleSelect = useCallback((id: number | string) => {
+    setMuzakkiList(prev => prev.map(m => 
+      m.id === id ? { ...m, selected: !m.selected } : m
+    ));
+    setFilteredMuzakki(prev => prev.map(m => 
+      m.id === id ? { ...m, selected: !m.selected } : m
+    ));
+    
+    // Update selectAll status
+    setSelectAll(prev => {
+      const allSelected = muzakkiList.every(m => 
+        m.id === id ? !m.selected : m.selected
+      );
+      return allSelected;
+    });
+  }, [muzakkiList]);
+
+  const handleKirim = useCallback(() => {
+    const selectedMuzakki = muzakkiList.filter(m => m.selected);
+    if (selectedMuzakki.length === 0) return;
+
+    selectedMuzakki.forEach(m => {
+      const personalized = pesan.replace(/{{nama}}/gi, m.name);
       window.open(
-        `https://wa.me/${m.phoneNumber}?text=${encodeURIComponent(personalizedMessage)}`,
-        '_blank'
+        `https://wa.me/${m.phoneNumber}?text=${encodeURIComponent(personalized)}`
       );
     });
-
-    alert(`Pesan telah dikirim ke ${selected.length} donatur`);
-    onBack();
-  };
+  }, [muzakkiList, pesan]);
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <Button
         onClick={onBack}
         className="mb-4 bg-gray-100 text-black hover:bg-gray-200 rounded-2xl px-4 py-2 flex items-center gap-2 shadow"
@@ -217,7 +190,7 @@ export default function ReminderTelatDonasi({ onBack }: Props) {
                 placeholder="Tulis pesan reminder disini..."
               />
               <p className="text-sm text-gray-500 mt-2">
-                Gunakan <code>{'{{nama}}'}</code> untuk menampilkan nama donatur
+                Gunakan <code className="bg-gray-100 px-1 rounded">{'{{nama}}'}</code> untuk menampilkan nama donatur
               </p>
             </div>
           </div>
@@ -240,7 +213,10 @@ export default function ReminderTelatDonasi({ onBack }: Props) {
               <thead className="bg-gray-100 text-left font-semibold border-b border-gray-300">
                 <tr>
                   <th className="p-4 w-12 text-center border-r border-gray-300">
-                    <Checkbox checked={selectAll} onCheckedChange={toggleSelectAll} />
+                    <Checkbox 
+                      checked={selectAll} 
+                      onCheckedChange={(checked) => toggleSelectAll(checked === true)} 
+                    />
                   </th>
                   <th className="p-4 border-r border-gray-300">Nama</th>
                   <th className="p-4 border-r border-gray-300">No. HP</th>

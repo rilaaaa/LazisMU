@@ -2,11 +2,10 @@ import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { Tool } from "langchain/tools";
 import { Database, Jurnal, JurnalData, JurnalDataCleaning } from "@/db/db";
 
-// Tool 1: Generate SQL Query using Gemini with Sequelize knowledge
+// Tool 1: Generate SQL Query
 export class DatabaseQueryTool extends Tool {
   name = "generate_sql_query";
-  description = `Generates SQL queries for Lazismu PostgreSQL database using Sequelize ORM. Provide the question or task in natural language.`;
-
+  description = `Generates SQL queries for Lazismu PostgreSQL database. Input should be a clear question or task description.`;
   private model: ChatGoogleGenerativeAI;
 
   constructor() {
@@ -15,40 +14,44 @@ export class DatabaseQueryTool extends Tool {
       model: "gemini-1.5-flash",
       apiKey: process.env.GEMINI_API_KEY,
       temperature: 0.1,
-      maxOutputTokens: 2048,
+      maxOutputTokens: 1024,
     });
   }
 
   async _call(input: string) {
     try {
+      console.log(`🔍 Input to generate: ${input}`);
       const schemaInfo = this.getLazismuSchemaInfo();
-
-      const prompt = `You are a PostgreSQL SQL query generator for Lazismu database that understands Sequelize ORM.
+      const prompt = `Generate a PostgreSQL SQL query for this task: "${input}"
       
-      Database Schema:
-      ${schemaInfo}
+Database Schema:
+${schemaInfo}
 
-      Task: ${input}
+Requirements:
+- Return ONLY the SQL query, no explanations
+- Ensure proper JOIN syntax if multiple tables needed
+- Use appropriate WHERE conditions
+- Perhatikan huruf besar dan kecil pada Schema ketika membuat query
 
-      Generate a valid PostgreSQL SQL query to accomplish this task. 
-      Return ONLY the SQL query without any additional explanation or markdown formatting.
-      Only query tables that exist in the schema (jurnals, JurnalData, JurnalDataCleanings).`;
+Task: ${input}`;
 
       const result = await this.model.invoke(prompt);
-      const query = result.content.toString().trim();
-
+      const query = result.content.toString().trim()
+        .replace(/```sql/g, '')
+        .replace(/```/g, '')
+        .trim();
+      
+      console.log(`📝 Generated SQL: ${query}`);
       return query;
     } catch (error) {
       console.error("Error generating SQL query:", error);
-      return "Error generating SQL query";
+      return `ERROR: Could not generate SQL query - ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 
   private getLazismuSchemaInfo(): string {
-    // Lazismu specific schema information
     return `
 LAZISMU DATABASE SCHEMA:
-
 1. TABLE jurnals:
    - id: INTEGER (PK, auto-increment)
    - name: STRING (not null)
@@ -71,33 +74,62 @@ LAZISMU DATABASE SCHEMA:
    - Same structure as JurnalData
 
 RELATIONSHIPS:
-- jurnals has many JurnalData (foreign key: jurnal_id)
-- jurnals has many JurnalDataCleanings (foreign key: jurnal_id)
+- jurnals (1) -> (many) JurnalData
+- jurnals (1) -> (many) JurnalDataCleanings
 `;
   }
 }
 
-// Tool 2: Execute SQL Query on Lazismu PostgreSQL
+// Tool 2: Execute SQL Query
 export class ExecuteQueryTool extends Tool {
   name = "execute_sql_query";
-  description = "Executes a raw SQL query on the Lazismu PostgreSQL database and returns the results.";
+  description = "Executes a raw SQL query and returns formatted results. Input should be a valid SQL query string.";
 
   async _call(query: string) {
     try {
-      // Validate the query to prevent potential SQL injection
+      // Security check
       if (this.isQueryMalicious(query)) {
-        throw new Error("Query contains potentially dangerous operations");
+        return JSON.stringify({
+          status: "error",
+          message: "Query contains potentially dangerous operations. Only SELECT queries are allowed."
+        });
       }
 
+      console.log(`🔍 Executing query: ${query}`);
       const [results] = await Database.query(query);
-      return JSON.stringify(results, null, 2);
+      
+      // Format results for better readability
+      const response = {
+        status: "success",
+        rowCount: Array.isArray(results) ? results.length : 0,
+        data: results,
+        summary: Array.isArray(results) && results.length > 0 
+          ? `Found ${results.length} record(s)`
+          : "No records found"
+      };
+
+      console.log(`✅ Query executed successfully: ${response.summary}`);
+      return JSON.stringify(response, null, 2);
     } catch (error) {
-      console.error("Error executing SQL query:", error);
-      return `Error executing query: ${error instanceof Error ? error.message : String(error)}`;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("❌ Error executing SQL query:", errorMessage);
+      
+      return JSON.stringify({
+        status: "error",
+        message: errorMessage,
+        query: query
+      });
     }
   }
 
   private isQueryMalicious(query: string): boolean {
+    const normalizedQuery = query.toLowerCase().trim();
+    
+    // Only allow SELECT queries
+    if (!normalizedQuery.startsWith('select')) {
+      return true;
+    }
+
     const dangerousPatterns = [
       /drop\s+table/i,
       /truncate\s+table/i,
@@ -108,17 +140,19 @@ export class ExecuteQueryTool extends Tool {
       /create\s+table/i,
       /grant\s+.+\s+to/i,
       /revoke\s+.+\s+from/i,
+      /exec\s*\(/i,
+      /execute\s*\(/i,
+      /;\s*(drop|delete|update|insert|alter|create)/i
     ];
 
     return dangerousPatterns.some(pattern => pattern.test(query));
   }
 }
 
-// Tool 3: Explain Lazismu Data using Gemini
+// Tool 3: Data Explanation Tool
 export class DataExplanationTool extends Tool {
   name = "explain_data";
-  description = "Analyzes and explains Lazismu donation data in natural language. Provide the data and any specific questions you have about it.";
-
+  description = "Analyzes and explains Lazismu donation data in natural language. Input should be data or query results to analyze.";
   private model: ChatGoogleGenerativeAI;
 
   constructor() {
@@ -127,32 +161,46 @@ export class DataExplanationTool extends Tool {
       model: "gemini-1.5-flash",
       apiKey: process.env.GEMINI_API_KEY,
       temperature: 0.3,
-      maxOutputTokens: 2048,
+      maxOutputTokens: 1024,
     });
   }
 
   async _call(input: string) {
     try {
-      const prompt = `You are a data analysis assistant for Lazismu (Islamic charity organization). 
-Analyze and explain the following donation data:
+      let dataToAnalyze = input;
+      
+      // Try to parse JSON if input looks like JSON
+      try {
+        const parsed = JSON.parse(input);
+        if (parsed.data && Array.isArray(parsed.data)) {
+          dataToAnalyze = JSON.stringify(parsed.data, null, 2);
+        }
+      } catch {
+        // If not JSON, use input as-is
+      }
 
-${input}
+      const prompt = `Analyze this Lazismu (Islamic charity organization) donation data and provide insights:
 
-Provide insights about:
-- Donation patterns
-- Donor information
-- Amount trends
-- Time-based analysis (if dates are available)
-- Any interesting observations
+Data to analyze:
+${dataToAnalyze}
 
-Format your response with clear paragraphs and bullet points when appropriate.
-Focus on information relevant to charity management and reporting.`;
+Please provide:
+1. Ringkas data menjadi paragraf yang mudah dipahami.
+
+Keep the analysis focused and practical for charity administrators.
+Format with clear paragraphs and bullet points where helpful.`;
 
       const result = await this.model.invoke(prompt);
-      return result.content.toString();
+      const analysis = result.content.toString();
+      
+      console.log(`📊 Generated data analysis (${analysis.length} characters)`);
+      console.log(analysis);
+      return {
+        "analysis_result": analysis
+      };
     } catch (error) {
       console.error("Error explaining data:", error);
-      return "Error explaining data";
+      return `ERROR: Could not analyze data - ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 }

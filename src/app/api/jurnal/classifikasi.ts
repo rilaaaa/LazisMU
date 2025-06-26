@@ -38,10 +38,8 @@ export class DonationClassifier {
         row['kategori'] = 'Zakat';
       } else if (sumber.includes('infaq')) {
         row['kategori'] = 'Infaq';
-      } else if (sumber.includes('donasi')) {
-        row['kategori'] = 'Momentum';
       } else {
-        row['kategori'] = 'Tidak Diketahui';
+        row['kategori'] = 'Momentum';
       }
     }
 

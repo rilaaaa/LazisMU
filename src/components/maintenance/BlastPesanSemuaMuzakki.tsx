@@ -1,13 +1,19 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Upload, X } from 'lucide-react';
 
+interface Muzakki {
+  id: number;
+  nama: string;
+  no_hp: string;
+}
+
 interface Props {
   onBack: () => void;
-  totalMuzakki: number;
+  totalMuzakki: number; // masih dipakai, walau jumlah real dari API
 }
 
 const BlastPesanSemuaMuzakki: React.FC<Props> = ({ onBack, totalMuzakki }) => {
@@ -15,6 +21,32 @@ const BlastPesanSemuaMuzakki: React.FC<Props> = ({ onBack, totalMuzakki }) => {
   const [poster, setPoster] = useState<File | null>(null);
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const [isSent, setIsSent] = useState(false);
+  const [muzakkiList, setMuzakkiList] = useState<Muzakki[]>([]);
+
+  useEffect(() => {
+  const fetchMuzakki = async () => {
+    try {
+      const res = await fetch('/api/muzzaki'); // <== sudah benar URL-nya
+      const json = await res.json();
+
+      if (Array.isArray(json.data)) {
+        const cleaned = json.data.map((item: any) => ({
+          id: item.id,
+          nama: item.name,
+          no_hp: item.phoneNumber,
+        }));
+
+        setMuzakkiList(cleaned);
+      } else {
+        console.error('Data muzakki tidak valid:', json);
+      }
+    } catch (error) {
+      console.error('Gagal mengambil data muzakki:', error);
+    }
+  };
+
+  fetchMuzakki();
+}, []);
 
   const handlePosterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -32,21 +64,35 @@ const BlastPesanSemuaMuzakki: React.FC<Props> = ({ onBack, totalMuzakki }) => {
   };
 
   const handleSend = () => {
-    if (!message.trim()) {
-      alert('Pesan tidak boleh kosong');
-      return;
-    }
+  if (!message.trim()) {
+    alert('Pesan tidak boleh kosong');
+    return;
+  }
 
-    console.log('Poster:', poster);
-    console.log('Pesan:', message);
+  if (muzakkiList.length === 0) {
+    alert('Data muzakki kosong.');
+    return;
+  }
 
-    setIsSent(true);
-    alert(`Pesan berhasil dikirim ke seluruh muzakki (${totalMuzakki} orang)`);
+  const recipients = muzakkiList.map((m) => ({
+    name: m.nama,
+    no: m.no_hp.startsWith('62') ? m.no_hp : `62${m.no_hp.replace(/^0+/, '')}`,
+  }));
+
+  const payload = {
+    recipients,
+    template: message,
   };
+
+  console.log('Payload yang akan dikirim (simulasi):', payload); // ✅ INI YANG MENAMPILKAN KE CONSOLE LOG
+
+  alert(`Simulasi pengiriman berhasil ke ${recipients.length} muzakki. Lihat console log.`);
+  setIsSent(true);
+};
+
 
   return (
     <div className="p-6 space-y-6">
-      {/* Tombol Kembali */}
       <Button
         onClick={onBack}
         className="bg-gray-200 text-black hover:bg-gray-300 rounded-xl px-4 py-2 flex items-center gap-2 shadow-sm"
@@ -58,7 +104,6 @@ const BlastPesanSemuaMuzakki: React.FC<Props> = ({ onBack, totalMuzakki }) => {
       <h2 className="text-xl font-bold">Blast Pesan ke Seluruh Muzakki</h2>
 
       <div className="flex flex-col md:flex-row gap-6 border-2 border-gray-200 p-6 rounded-xl bg-white">
-        {/* Upload Poster */}
         <div className="flex-1 border rounded-lg p-4 relative min-h-[200px] flex items-center justify-center">
           {posterPreview ? (
             <div className="relative">
@@ -90,7 +135,6 @@ const BlastPesanSemuaMuzakki: React.FC<Props> = ({ onBack, totalMuzakki }) => {
           )}
         </div>
 
-        {/* Textarea untuk pesan */}
         <div className="flex-1 border rounded-lg p-4">
           <Textarea
             placeholder="Tulis pesan di sini..."
@@ -103,10 +147,11 @@ const BlastPesanSemuaMuzakki: React.FC<Props> = ({ onBack, totalMuzakki }) => {
         </div>
       </div>
 
-      {/* Info & tombol kirim */}
       <div className="bg-gray-100 p-4 rounded-lg flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
-          <p className="font-medium">Total Penerima: {totalMuzakki} Muzakki</p>
+          <p className="font-medium">
+            Total Penerima: {muzakkiList.length} Muzakki
+          </p>
           <p className="text-sm text-gray-600">
             Pesan akan dikirim ke semua nomor HP muzakki
           </p>

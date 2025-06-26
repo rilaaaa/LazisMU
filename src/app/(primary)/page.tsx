@@ -68,7 +68,7 @@ export default function DashboardPage() {
           <YearFilter
             selectedYear={selectedYear}
             handleYearChange={handleYearChange}
-            yearOptions={[...new Set(muzakkiData.map((item) => item.year.toString()))]}
+            yearOptions={[...new Set(muzakkiData.map((item) => item.year ? item.year.toString() : ''))].filter(Boolean)}
           />
 
           {/*Donor Type Filter*/}

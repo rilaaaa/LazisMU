@@ -1,6 +1,6 @@
 import { Sequelize, DataTypes } from 'sequelize';
 
-export const Database = new Sequelize('lazismu', 'postgres', 'lintang', {
+export const Database = new Sequelize('lazismu', 'zulfanfaizun', '', {
     host: 'localhost',
     dialect: 'postgres',
     logging: false,

@@ -9,25 +9,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid recipients data' }, { status: 400 });
     }
 
-    if (!template) {
-      return NextResponse.json({ error: 'Template is required' }, { status: 400 });
+    if (!template || typeof template !== 'string') {
+      return NextResponse.json({ error: 'Template is required and must be a string' }, { status: 400 });
     }
 
-    const ACCESS_TOKEN = "EAARPPEm9XyMBO2LDbqQwRh3cWuOLDUuUE7YVSE8tq7vWZAhR0sw9lPiJ2JxvX6ObtyEZC1ucvbApewZBZADqTGc1PQHCq6HqLaxoHq0e7KfJCiT4po28kbN2Vq4Cbn2hs78NLRNXKP2ZBQ3nBxcXkGovsCRU7eBF3gQMsZA7VvNxA3Nt0bM0eNqCRYNCGU1BeiXlrTgEBgK90qoNk5z8pfZB2jOXvyuVycRtJ03eLLGNF2amwZDZD";
-    const PHONE_NUMBER_ID = "702625622932177";
+    const ACCESS_TOKEN = "EAARPPEm9XyMBO37Y3OalDUlB7FeBOtnESHLiA83D2lVtGurZCYUP1AuARHORAksLuwYYZBY88rQAN5deFWB49HLfYCXHjj7bts5bg1UuVOLx6wWh8dwozVqnIwwrc1kNuSlZA2x5GEVPRrKq2MuKCj8550hSygrsFTfhTTAVm7jQ2NraFMZCA2WcIpW8yRgjT1B0UJi4et7iwAmexMGm0xybwsZBUDAYVuZCkGFAqji2OOTQZDZD";
+    const PHONE_NUMBER_ID = "678646702004861";
 
     const results = await Promise.all(
       recipients.map(async (recipient: any) => {
         try {
-          const url = `https://graph.facebook.com/v22.0/${PHONE_NUMBER_ID}/messages`;
+          const url = `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`;
 
-          const messageBody = template.replace('{name}', recipient.name);
+          // Gantikan semua {nama} dengan recipient.name
+          const messageText = template.replace(/{nama}/gi, recipient.name);
 
           const data = {
             messaging_product: "whatsapp",
             to: recipient.no,
             type: "template",
-            template: { name: "hello_world", language: {code:"en_US"} }
+            template: { name: "reminder", language: {code:"en_US"} }
           };
 
           const response = await fetch(url, {

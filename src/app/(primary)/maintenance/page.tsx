@@ -13,6 +13,8 @@ interface Muzzaki {
   id: string;
   name: string;
   phoneNumber: string;
+  donorType?: string;
+  kategori?: string;
   transactions?: { date: string; amount: number }[];
 }
 
@@ -25,6 +27,8 @@ export default function MaintenancePage() {
   const [showBlastPage, setShowBlastPage] = useState(false);
   const [showBlastPerKategoriPage, setShowBlastPerKategoriPage] = useState(false);
   const [showReminderPage, setShowReminderPage] = useState(false);
+  const [activeInputId, setActiveInputId] = useState<string | null>(null);
+  const [manualMessages, setManualMessages] = useState<Record<string, string>>({});
 
   const router = useRouter();
 
@@ -55,8 +59,7 @@ export default function MaintenancePage() {
           phoneNumber: item.phoneNumber || '',
           donorType: item.donorType || item.kategori || 'Calon',
           transactions: item.transactions || []
-    }));
-
+        }));
 
         setMuzakkiList(validatedData);
         fetchTelatDonasiCount(validatedData);
@@ -109,8 +112,49 @@ export default function MaintenancePage() {
       item.phoneNumber?.includes(search)
   );
 
-  const handleKirimManual = (item: Muzzaki) => {
-    alert(`Kirim manual ke ${item.name} - ${item.phoneNumber}`);
+  const handleKirimManual = async (item: Muzzaki) => {
+    const template = manualMessages[item.id];
+    if (!template || template.trim() === '') {
+      alert('Isi pesan terlebih dahulu.');
+      return;
+    }
+
+    const formattedPhone = item.phoneNumber.startsWith('62')
+      ? item.phoneNumber
+      : `62${item.phoneNumber.replace(/^0+/, '')}`;
+
+    const payload = {
+      recipients: [
+        {
+          name: item.name,
+          no: formattedPhone,
+        },
+      ],
+      template,
+    };
+
+    try {
+      const res = await fetch('/api/whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        console.error('Gagal kirim:', err);
+        alert(`Gagal kirim pesan ke ${item.name}`);
+        return;
+      }
+
+      const result = await res.json();
+      console.log('Berhasil:', result);
+      alert(`Pesan berhasil dikirim ke ${item.name}`);
+      setActiveInputId(null);
+    } catch (error) {
+      console.error('Kesalahan kirim manual:', error);
+      alert(`Terjadi kesalahan saat kirim ke ${item.name}`);
+    }
   };
 
   return (
@@ -211,19 +255,41 @@ export default function MaintenancePage() {
                 </thead>
                 <tbody>
                   {filteredData.map((item) => (
-                    <tr key={item.id} className="border-t hover:bg-gray-50">
-                      <td className="p-4 border-r font-medium text-gray-800">{item.name || '-'}</td>
-                      <td className="p-4 border-r">{item.phoneNumber || '-'}</td>
-                      <td className="p-4">
-                        <Button
-                          size="sm"
-                          onClick={() => handleKirimManual(item)}
-                          className="bg-orange-500 text-white hover:bg-orange-600 rounded-md px-4"
-                        >
-                          Kirim
-                        </Button>
-                      </td>
-                    </tr>
+                    <React.Fragment key={item.id}>
+                      <tr className="border-t hover:bg-gray-50">
+                        <td className="p-4 border-r font-medium text-gray-800">{item.name || '-'}</td>
+                        <td className="p-4 border-r">{item.phoneNumber || '-'}</td>
+                        <td className="p-4">
+                          {activeInputId === item.id ? (
+                            <div className="space-y-2">
+                              <textarea
+                                value={manualMessages[item.id] || ''}
+                                onChange={(e) =>
+                                  setManualMessages((prev) => ({ ...prev, [item.id]: e.target.value }))
+                                }
+                                placeholder={`Tulis pesan untuk ${item.name}`}
+                                className="w-full p-2 border rounded-md text-sm"
+                              />
+                              <Button
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700 text-white px-4 py-1 rounded"
+                                onClick={() => handleKirimManual(item)}
+                              >
+                                Kirim Sekarang
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => setActiveInputId(item.id)}
+                              className="bg-orange-500 text-white hover:bg-orange-600 rounded-md px-4"
+                            >
+                              Kirim
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>

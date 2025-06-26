@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Upload, X, Search } from 'lucide-react';
+import { ArrowLeft, Search } from 'lucide-react';
 
 interface Props {
   onBack: () => void;
@@ -25,8 +25,6 @@ export default function BlastPesanPerKategori({ onBack, muzakkiList }: Props) {
   const [selectedMuzakki, setSelectedMuzakki] = useState<number[]>([]);
   const [selectAll, setSelectAll] = useState(false);
   const [pesan, setPesan] = useState('');
-  const [poster, setPoster] = useState<File | null>(null);
-  const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredMuzakki = muzakkiList.filter(
@@ -52,14 +50,6 @@ export default function BlastPesanPerKategori({ onBack, muzakkiList }: Props) {
     setSelectAll(!selectAll);
   };
 
-  const handlePosterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setPoster(file);
-      setPosterPreview(URL.createObjectURL(file));
-    }
-  };
-
   const handleKirim = async () => {
     if (selectedMuzakki.length === 0 || !pesan.trim()) {
       alert('Pilih minimal 1 muzakki dan isi pesan');
@@ -68,13 +58,77 @@ export default function BlastPesanPerKategori({ onBack, muzakkiList }: Props) {
 
     const selectedData = muzakkiList.filter((m) => selectedMuzakki.includes(m.id));
 
-    for (const m of selectedData) {
-      const personalizedMessage = pesan.replace(/{{nama}}/gi, m.name);
-      const url = `https://wa.me/${m.phoneNumber}?text=${encodeURIComponent(personalizedMessage)}`;
-      window.open(url, '_blank');
+    const recipients = selectedData.map((m) => ({
+      name: m.name,
+      no: m.phoneNumber.startsWith('62') ? m.phoneNumber : `62${m.phoneNumber.replace(/^0+/, '')}`,
+    }));
+
+    const payload = {
+      recipients,
+      template: pesan,
+    };
+
+    try {
+      const res = await fetch('/api/whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const error = await res.text();
+        console.error('Gagal kirim:', error);
+        alert('Pengiriman gagal. Cek console.');
+        return;
+      }
+
+      const result = await res.json();
+      console.log('Response API:', result);
+      alert(`Pesan berhasil dikirim ke ${selectedMuzakki.length} muzakki.`);
+    } catch (error) {
+      console.error('Kesalahan saat mengirim:', error);
+      alert('Terjadi kesalahan saat mengirim pesan.');
+    }
+  };
+
+  const handleKirimManual = async (m: Muzakki) => {
+    if (!pesan.trim()) {
+      alert('Pesan tidak boleh kosong');
+      return;
     }
 
-    alert(`Pesan berhasil diproses ke ${selectedMuzakki.length} muzakki melalui WhatsApp.`);
+    const formattedNumber = m.phoneNumber.startsWith('62')
+      ? m.phoneNumber
+      : `62${m.phoneNumber.replace(/^0+/, '')}`;
+
+    const personalizedMessage = pesan.replace(/{{nama}}/gi, m.name);
+
+    const payload = {
+      recipients: [{ name: m.name, no: formattedNumber }],
+      template: personalizedMessage,
+    };
+
+    try {
+      const res = await fetch('/api/whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const error = await res.text();
+        console.error('Gagal kirim:', error);
+        alert(`Gagal mengirim ke ${m.name}.`);
+        return;
+      }
+
+      const result = await res.json();
+      console.log(`Berhasil kirim ke ${m.name}`, result);
+      alert(`Pesan berhasil dikirim ke ${m.name}.`);
+    } catch (error) {
+      console.error('Kesalahan saat mengirim:', error);
+      alert(`Terjadi kesalahan saat kirim ke ${m.name}`);
+    }
   };
 
   return (
@@ -108,39 +162,13 @@ export default function BlastPesanPerKategori({ onBack, muzakkiList }: Props) {
         ))}
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <div className="flex-1 border-2 border-gray-300 rounded-lg p-4 relative">
-          {posterPreview ? (
-            <div className="relative">
-              <img src={posterPreview} alt="Poster Preview" className="mx-auto max-h-60 object-contain rounded" />
-              <button
-                type="button"
-                onClick={() => {
-                  setPoster(null);
-                  setPosterPreview(null);
-                }}
-                className="absolute top-2 right-2 bg-white p-1 rounded-full shadow hover:bg-gray-100 z-10"
-              >
-                <X className="w-4 h-4 text-gray-600" />
-              </button>
-            </div>
-          ) : (
-            <label className="cursor-pointer flex flex-col items-center justify-center h-48 text-gray-500 hover:text-gray-700 border-dashed border-2 border-gray-300 rounded-lg">
-              <Upload className="w-8 h-8 mb-2" />
-              <span>Upload Poster</span>
-              <input type="file" accept="image/*" className="hidden" onChange={handlePosterChange} />
-            </label>
-          )}
-        </div>
-
-        <div className="flex-1 border-2 border-gray-300 rounded-lg p-4">
-          <Textarea
-            placeholder="Tulis pesan di sini, gunakan {{nama}} untuk personalisasi..."
-            value={pesan}
-            onChange={(e) => setPesan(e.target.value)}
-            className="h-40"
-          />
-        </div>
+      <div className="border-2 border-gray-300 rounded-lg p-4 mb-6">
+        <Textarea
+          placeholder="Tulis pesan di sini, gunakan {{nama}} untuk personalisasi..."
+          value={pesan}
+          onChange={(e) => setPesan(e.target.value)}
+          className="h-40"
+        />
       </div>
 
       <div className="flex justify-end mb-4 relative w-full md:w-1/3 ml-auto">
@@ -159,7 +187,7 @@ export default function BlastPesanPerKategori({ onBack, muzakkiList }: Props) {
           <thead className="bg-gray-100 text-left font-semibold border-b border-gray-300">
             <tr>
               <th className="p-4 w-12 text-center border-r border-gray-300">
-                <Checkbox checked={selectAll} onCheckedChange={() => toggleSelectAll()} />
+                <Checkbox checked={selectAll} onCheckedChange={toggleSelectAll} />
               </th>
               <th className="p-4 border-r border-gray-300">Nama</th>
               <th className="p-4 border-r border-gray-300">No. HP</th>
@@ -174,34 +202,26 @@ export default function BlastPesanPerKategori({ onBack, muzakkiList }: Props) {
                 </td>
               </tr>
             ) : (
-              filteredMuzakki.map((m) => {
-                const personalized = pesan.replace(/{{nama}}/gi, m.name);
-                return (
-                  <tr key={m.id} className="border-t border-gray-300 hover:bg-gray-50">
-                    <td className="p-4 text-center border-r border-gray-300">
-                      <Checkbox
-                        checked={selectedMuzakki.includes(m.id)}
-                        onCheckedChange={() => toggleSelect(m.id)}
-                      />
-                    </td>
-                    <td className="p-4 border-r border-gray-300">{m.name}</td>
-                    <td className="p-4 border-r border-gray-300">{m.phoneNumber}</td>
-                    <td className="p-4">
-                      <Button
-                        className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-1 rounded"
-                        onClick={() =>
-                          window.open(
-                            `https://wa.me/${m.phoneNumber}?text=${encodeURIComponent(personalized)}`,
-                            '_blank'
-                          )
-                        }
-                      >
-                        Kirim
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })
+              filteredMuzakki.map((m) => (
+                <tr key={m.id} className="border-t border-gray-300 hover:bg-gray-50">
+                  <td className="p-4 text-center border-r border-gray-300">
+                    <Checkbox
+                      checked={selectedMuzakki.includes(m.id)}
+                      onCheckedChange={() => toggleSelect(m.id)}
+                    />
+                  </td>
+                  <td className="p-4 border-r border-gray-300">{m.name}</td>
+                  <td className="p-4 border-r border-gray-300">{m.phoneNumber}</td>
+                  <td className="p-4">
+                    <Button
+                      className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-1 rounded"
+                      onClick={() => handleKirimManual(m)}
+                    >
+                      Kirim
+                    </Button>
+                  </td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>

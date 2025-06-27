@@ -213,7 +213,7 @@ export default function ReminderTelatDonasi({ onBack, onLoaded }: Props) {
 
       <div className="border-2 border-gray-300 rounded-lg p-4 mb-6">
         <Textarea
-          placeholder="Tulis pesan di sini, gunakan {{nama}} dan {{tanggal}}..."
+          placeholder="Tulis pesan di sini, gunakan {{nama}}..."
           value={pesan}
           onChange={(e) => setPesan(e.target.value)}
           className="w-full h-40"

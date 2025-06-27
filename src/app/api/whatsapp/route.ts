@@ -27,8 +27,12 @@ export async function POST(req: NextRequest) {
           const data = {
             messaging_product: "whatsapp",
             to: recipient.no,
-            type: "template",
-            template: { name: "reminder", language: {code:"en_US"} }
+            type: "text",
+            text: {
+              body: messageText
+            }
+            // type: "template",
+            // template: { name: "event_rsvp", language: {code:"en_US"} }
           };
 
           const response = await fetch(url, {

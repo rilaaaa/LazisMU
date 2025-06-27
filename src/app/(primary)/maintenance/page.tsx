@@ -22,7 +22,7 @@ export default function MaintenancePage() {
   const [muzakkiList, setMuzakkiList] = useState<Muzzaki[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [telatDonasiCount, setTelatDonasiCount] = useState<number>(0);
+  const [telatDonasiList, setTelatDonasiList] = useState<Muzzaki[]>([]);
   const [search, setSearch] = useState('');
   const [showBlastPage, setShowBlastPage] = useState(false);
   const [showBlastPerKategoriPage, setShowBlastPerKategoriPage] = useState(false);
@@ -58,49 +58,16 @@ export default function MaintenancePage() {
           name: item.name || '',
           phoneNumber: item.phoneNumber || '',
           donorType: item.donorType || item.kategori || 'Calon',
-          transactions: item.transactions || []
+          transactions: item.transactions || [],
         }));
 
         setMuzakkiList(validatedData);
-        fetchTelatDonasiCount(validatedData);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Terjadi kesalahan');
         setMuzakkiList([]);
       } finally {
         setLoading(false);
       }
-    };
-
-    const fetchTelatDonasiCount = (data: Muzzaki[]) => {
-      const telat = data.filter((muzakki) => {
-        const transactions = (muzakki.transactions || [])
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-        if (transactions.length < 3) return false;
-
-        const [first, second, third] = transactions;
-        const firstDate = new Date(first.date);
-        const secondDate = new Date(second.date);
-        const thirdDate = new Date(third.date);
-
-        const dayDiff1 = Math.abs(firstDate.getDate() - secondDate.getDate());
-        const dayDiff2 = Math.abs(secondDate.getDate() - thirdDate.getDate());
-
-        const isConsecutiveMonths =
-          (firstDate.getMonth() - secondDate.getMonth() === 1 ||
-            (firstDate.getMonth() === 0 && secondDate.getMonth() === 11)) &&
-          (secondDate.getMonth() - thirdDate.getMonth() === 1 ||
-            (secondDate.getMonth() === 0 && thirdDate.getMonth() === 11));
-
-        const currentMonth = new Date().getMonth();
-        const hasCurrentMonthDonation = transactions.some(
-          (t) => new Date(t.date).getMonth() === currentMonth
-        );
-
-        return dayDiff1 <= 2 && dayDiff2 <= 2 && isConsecutiveMonths && !hasCurrentMonthDonation;
-      });
-
-      setTelatDonasiCount(telat.length);
     };
 
     fetchMuzakki();
@@ -171,7 +138,10 @@ export default function MaintenancePage() {
           muzakkiList={muzakkiList}
         />
       ) : showReminderPage ? (
-        <ReminderTelatDonasi onBack={() => setShowReminderPage(false)} />
+        <ReminderTelatDonasi
+          onBack={() => setShowReminderPage(false)}
+          onLoaded={(list) => setTelatDonasiList(list)}
+        />
       ) : (
         <>
           <div className="flex justify-between items-center mb-4">
@@ -203,7 +173,7 @@ export default function MaintenancePage() {
 
             <div className="border p-4 rounded-xl shadow bg-white">
               <h2 className="font-semibold mb-1">Muzakki Telat Donasi</h2>
-              <div className="text-3xl font-bold text-orange-500 mb-2">{telatDonasiCount}</div>
+              <div className="text-3xl font-bold text-orange-500 mb-2">{telatDonasiList.length}</div>
               <Button
                 className="bg-orange-500 hover:bg-orange-600 text-white"
                 onClick={() => setShowReminderPage(true)}

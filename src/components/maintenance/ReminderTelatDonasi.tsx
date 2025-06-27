@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Search } from 'lucide-react';
 
@@ -11,7 +12,7 @@ interface DonationHistory {
 }
 
 interface Muzakki {
-  id: number | string;
+  id: string | number;
   name: string;
   phoneNumber: string;
   lastDonationDate: string;
@@ -25,317 +26,266 @@ interface Muzakki {
 
 interface Props {
   onBack: () => void;
+  onLoaded?: (muzakkiTelat: Muzakki[]) => void;
 }
 
-export default function ReminderTelatDonasi({ onBack }: Props) {
+export default function ReminderTelatDonasi({ onBack, onLoaded }: Props) {
   const [muzakkiList, setMuzakkiList] = useState<Muzakki[]>([]);
-  const [filteredMuzakki, setFilteredMuzakki] = useState<Muzakki[]>([]);
-  const [pesan, setPesan] = useState(
-    `Assalamualaikum Warohmatullahi Wabarokatuh, Bapak/Ibu {{nama}} yang terhormat.
-
-Kami dari Lazismu ingin mengingatkan bahwa biasanya Bapak/Ibu rutin berdonasi setiap tanggal {{tanggal}}. Namun untuk bulan ini kami belum menerima donasi dari Bapak/Ibu.
-
-Semoga Allah SWT senantiasa melimpahkan rezeki dan keberkahan untuk Bapak/Ibu dan keluarga.
-
-Jazakallahu khairan.`
-  );
-  const [search, setSearch] = useState('');
+  const [pesan, setPesan] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedMuzakki, setSelectedMuzakki] = useState<(string | number)[]>([]);
   const [selectAll, setSelectAll] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [currentDate] = useState(new Date());
+  const today = new Date();
 
-  const isConsistentThreeMonthDonor = (donationHistory: DonationHistory[]) => {
-    if (donationHistory.length < 3) return { isConsistent: false, averageDay: 0 };
-
-    const sortedHistory = [...donationHistory].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  const checkConsistent = (history: DonationHistory[]) => {
+    if (history.length < 3) return { isValid: false, averageDay: 0 };
+    const sorted = [...history].sort((a, b) => +new Date(b.date) - +new Date(a.date)).slice(0, 3);
+    const months = sorted.map(d => new Date(d.date).getMonth());
+    const days = sorted.map(d => new Date(d.date).getDate());
+    const averageDay = Math.round(days.reduce((a, b) => a + b, 0) / days.length);
+    const consistentMonths = months.every((m, i) =>
+      i === 0 || months[i - 1] - m === 1 || (months[i - 1] === 0 && m === 11)
     );
-    const lastThree = sortedHistory.slice(0, 3);
-    const donationDates = lastThree.map(d => new Date(d.date));
-
-    let isConsecutiveMonths = true;
-    for (let i = 0; i < donationDates.length - 1; i++) {
-      const current = donationDates[i];
-      const next = donationDates[i + 1];
-      const monthDiff = current.getMonth() - next.getMonth();
-      const yearDiff = current.getFullYear() - next.getFullYear();
-      const isConsecutive =
-        (monthDiff === 1 && yearDiff === 0) || (monthDiff === -11 && yearDiff === 1);
-      if (!isConsecutive) {
-        isConsecutiveMonths = false;
-        break;
-      }
-    }
-
-    if (!isConsecutiveMonths) return { isConsistent: false, averageDay: 0 };
-
-    const donationDays = donationDates.map(d => d.getDate());
-    const averageDay = Math.round(donationDays.reduce((sum, day) => sum + day, 0) / donationDays.length);
-    const isDateConsistent = donationDays.every(day => Math.abs(day - averageDay) <= 3);
-
-    return {
-      isConsistent: isDateConsistent,
-      averageDay: isDateConsistent ? averageDay : 0
-    };
+    const consistentDays = days.every(day => Math.abs(day - averageDay) <= 3);
+    return { isValid: consistentMonths && consistentDays, averageDay };
   };
 
-  const hasDonatedThisMonth = (donationHistory: DonationHistory[]) => {
-    const currentMonth = currentDate.getMonth();
-    const currentYear = currentDate.getFullYear();
-    return donationHistory.some(donation => {
-      const donationDate = new Date(donation.date);
-      return donationDate.getMonth() === currentMonth && donationDate.getFullYear() === currentYear;
-    });
-  };
-
-  const calculateDaysLate = (averageDay: number) => {
-    const expectedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), averageDay);
-    const diffTime = currentDate.getTime() - expectedDate.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays > 0 ? diffDays : 0;
+  const calculateDaysLate = (avgDay: number) => {
+    const expected = new Date(today.getFullYear(), today.getMonth(), avgDay);
+    return Math.max(0, Math.floor((today.getTime() - expected.getTime()) / (1000 * 60 * 60 * 24)));
   };
 
   useEffect(() => {
-    const fetchReminderData = async () => {
-      setIsLoading(true);
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/muzzaki');
-        if (!response.ok) throw new Error('Gagal fetch data');
+        const res = await fetch('/api/muzzaki');
+        const json = await res.json();
+        const raw = json?.data || [];
 
-        const json = await response.json();
-        const donors = Array.isArray(json?.data) ? json.data : [];
+        const final: Muzakki[] = raw.map((d: any) => {
+          const history = (d.riwayat || d.donationHistory || []).map((r: any) => ({
+            date: r?.tanggal || r?.date || '',
+            amount: r?.nominal || r?.amount || 0,
+          })).filter(h => h.date);
 
-        const lateDonors: Muzakki[] = [];
+          const { isValid, averageDay } = checkConsistent(history);
+          if (!isValid) return null;
 
-        donors.forEach((donor: any) => {
-          const donationHistory: DonationHistory[] = (donor.riwayat || []).map((r: any) => ({
-            date: r.tanggal || r.date,
-            amount: r.nominal || r.amount || 0
-          }));
+          const thisMonth = history.some(h => {
+            const dt = new Date(h.date);
+            return dt.getMonth() === today.getMonth() && dt.getFullYear() === today.getFullYear();
+          });
 
-          const { isConsistent, averageDay } = isConsistentThreeMonthDonor(donationHistory);
-          if (!isConsistent) return;
-
-          const hasCurrentMonthDonation = hasDonatedThisMonth(donationHistory);
-          if (hasCurrentMonthDonation) return;
+          if (thisMonth) return null;
 
           const daysLate = calculateDaysLate(averageDay);
-          if (daysLate <= 0) return;
+          if (daysLate <= 0) return null;
 
-          const lastDonationDate = donationHistory.length > 0
-            ? donationHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date
-            : '';
-
-          const expectedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), averageDay);
-
-          lateDonors.push({
-            id: donor.id || donor.no_hp,
-            name: donor.nama,
-            phoneNumber: donor.no_hp,
-            lastDonationDate,
+          return {
+            id: d.id || d.no_hp || d.phoneNumber,
+            name: d.nama || d.name || 'Tanpa Nama',
+            phoneNumber: d.no_hp || d.phoneNumber || '',
+            lastDonationDate: history[0]?.date,
             status: 'Telat Donasi',
             selected: false,
-            donationHistory: donationHistory.slice(0, 3),
-            expectedDonationDate: expectedDate.toISOString().split('T')[0],
+            donationHistory: history.slice(0, 3),
+            expectedDonationDate: new Date(today.getFullYear(), today.getMonth(), averageDay).toISOString().split('T')[0],
             daysLate,
-            averageDonationDay: averageDay
-          });
-        });
+            averageDonationDay: averageDay,
+          };
+        }).filter(Boolean);
 
-        setMuzakkiList(lateDonors);
-        setFilteredMuzakki(lateDonors);
-      } catch (err) {
-        console.error('Gagal ambil data:', err);
+        setMuzakkiList(final);
+        if (onLoaded) onLoaded(final);
+      } catch (e) {
+        console.error('Gagal mengambil data:', e);
         setMuzakkiList([]);
-        setFilteredMuzakki([]);
-      } finally {
-        setIsLoading(false);
+        if (onLoaded) onLoaded([]);
       }
     };
 
-    fetchReminderData();
-  }, [currentDate]);
-
-  useEffect(() => {
-    const filtered = muzakkiList.filter(m =>
-      m.name.toLowerCase().includes(search.toLowerCase()) ||
-      m.phoneNumber.includes(search)
-    );
-    setFilteredMuzakki(filtered);
-  }, [search, muzakkiList]);
-
-  const toggleSelectAll = useCallback((checked: boolean) => {
-    setSelectAll(checked);
-    setMuzakkiList(prev => prev.map(m => ({ ...m, selected: checked })));
-    setFilteredMuzakki(prev => prev.map(m => ({ ...m, selected: checked })));
+    fetchData();
   }, []);
 
-  const toggleSelect = useCallback((id: number | string) => {
-    setMuzakkiList(prev =>
-      prev.map(m => (m.id === id ? { ...m, selected: !m.selected } : m))
-    );
-    setFilteredMuzakki(prev =>
-      prev.map(m => (m.id === id ? { ...m, selected: !m.selected } : m))
-    );
-  }, []);
+  const filtered = muzakkiList.filter(
+    (m) =>
+      (m.name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+      (m.phoneNumber?.includes(searchTerm) ?? false)
+  );
 
-  const handleKirim = useCallback(() => {
-    const selectedMuzakki = muzakkiList.filter(m => m.selected);
-    if (selectedMuzakki.length === 0) {
-      alert('Pilih minimal satu muzakki yang ingin dikirimi reminder.');
+  const toggleSelect = (id: string | number) => {
+    setSelectedMuzakki((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectAll) {
+      setSelectedMuzakki([]);
+    } else {
+      setSelectedMuzakki(filtered.map((m) => m.id));
+    }
+    setSelectAll(!selectAll);
+  };
+
+  const handleKirim = async () => {
+    if (selectedMuzakki.length === 0 || !pesan.trim()) {
+      alert('Pilih minimal 1 muzakki dan isi pesan');
       return;
     }
 
-    selectedMuzakki.forEach(m => {
-      const personalized = pesan
-        .replace(/{{nama}}/gi, m.name)
-        .replace(/{{tanggal}}/gi, m.averageDonationDay.toString());
+    const selectedData = muzakkiList.filter((m) => selectedMuzakki.includes(m.id));
+    const recipients = selectedData.map((m) => ({
+      name: m.name,
+      no: m.phoneNumber.startsWith('62') ? m.phoneNumber : `62${m.phoneNumber.replace(/^0+/, '')}`,
+    }));
 
-      window.open(`https://wa.me/${m.phoneNumber}?text=${encodeURIComponent(personalized)}`);
-    });
+    const payload = {
+      recipients,
+      template: pesan,
+    };
 
-    alert(`Pesan telah dikirim ke ${selectedMuzakki.length} donatur`);
-  }, [muzakkiList, pesan]);
+    try {
+      const res = await fetch('/api/whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const error = await res.text();
+        console.error('Gagal kirim:', error);
+        alert('Pengiriman gagal. Cek console.');
+        return;
+      }
+
+      const result = await res.json();
+      alert(`Pesan berhasil dikirim ke ${selectedMuzakki.length} muzakki.`);
+    } catch (error) {
+      console.error('Kesalahan saat mengirim:', error);
+      alert('Terjadi kesalahan saat mengirim pesan.');
+    }
+  };
+
+  const handleKirimManual = async (m: Muzakki) => {
+    if (!pesan.trim()) {
+      alert('Pesan tidak boleh kosong');
+      return;
+    }
+
+    const formattedNumber = m.phoneNumber.startsWith('62')
+      ? m.phoneNumber
+      : `62${m.phoneNumber.replace(/^0+/, '')}`;
+
+    const personalizedMessage = pesan
+      .replace(/{{nama}}/gi, m.name)
+      .replace(/{{tanggal}}/gi, m.averageDonationDay.toString());
+
+    const payload = {
+      recipients: [{ name: m.name, no: formattedNumber }],
+      template: personalizedMessage,
+    };
+
+    try {
+      const res = await fetch('/api/whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error(`Gagal: ${await res.text()}`);
+
+      alert(`Pesan berhasil dikirim ke ${m.name}`);
+    } catch (error) {
+      console.error(error);
+      alert(`Gagal kirim ke ${m.name}`);
+    }
+  };
 
   return (
-    <div className="p-4 md:p-6">
-      <Button
-        onClick={onBack}
-        className="mb-4 bg-gray-100 text-black hover:bg-gray-200 rounded-2xl px-4 py-2 flex items-center gap-2 shadow"
-      >
+    <div className="p-6">
+      <Button onClick={onBack} className="mb-4 bg-gray-100 text-black hover:bg-gray-200 rounded-2xl px-4 py-2 flex items-center gap-2 shadow">
         <ArrowLeft className="w-4 h-4" />
         <span className="text-base font-medium">Kembali</span>
       </Button>
 
-      <h2 className="text-xl font-bold mb-4">Reminder Donatur Rutin</h2>
-      <p className="text-gray-600 mb-6">
-        Daftar donatur yang rutin berdonasi 3 bulan berturut-turut di tanggal yang konsisten,
-        tetapi bulan ini sudah melewati tanggal biasa berdonasi dan belum melakukan donasi.
-      </p>
+      <h2 className="text-xl font-bold mb-4">Reminder Donatur Telat</h2>
 
-      {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
-        </div>
-      ) : (
-        <>
-          <div className="border-2 border-gray-300 rounded-lg p-4 mb-6">
-            <textarea
-              rows={8}
-              value={pesan}
-              onChange={(e) => setPesan(e.target.value)}
-              className="w-full h-40 resize-none border-0 focus:outline-none"
-              placeholder="Tulis pesan di sini..."
-            />
-            <p className="text-sm text-gray-500 mt-2">
-              Gunakan <code className="bg-gray-100 px-1 rounded">{`{{nama}}`}</code> untuk nama donatur dan{' '}
-              <code className="bg-gray-100 px-1 rounded">{`{{tanggal}}`}</code> untuk tanggal biasa berdonasi.
-            </p>
-          </div>
+      <div className="border-2 border-gray-300 rounded-lg p-4 mb-6">
+        <Textarea
+          placeholder="Tulis pesan di sini, gunakan {{nama}} dan {{tanggal}}..."
+          value={pesan}
+          onChange={(e) => setPesan(e.target.value)}
+          className="w-full h-40"
+        />
+      </div>
 
-          <div className="flex justify-end mb-4 relative w-full md:w-1/3 ml-auto">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Cari nama atau nomor HP"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
-            />
-          </div>
+      <div className="flex justify-end mb-4 relative w-full md:w-1/3 ml-auto">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+        <input
+          type="text"
+          placeholder="Cari"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+        />
+      </div>
 
-          <div className="overflow-auto rounded-lg shadow mb-6 bg-white">
-            <table className="w-full text-sm border border-gray-300">
-              <thead className="bg-gray-100 text-left font-semibold border-b border-gray-300">
-                <tr>
-                  <th className="p-4 w-12 text-center border-r border-gray-300">
+      <div className="overflow-auto rounded-lg shadow mb-6 bg-white">
+        <table className="w-full text-sm border border-gray-300">
+          <thead className="bg-gray-100 text-left font-semibold border-b border-gray-300">
+            <tr>
+              <th className="p-4 w-12 text-center border-r border-gray-300">
+                <Checkbox checked={selectAll} onCheckedChange={toggleSelectAll} />
+              </th>
+              <th className="p-4 border-r border-gray-300">Nama</th>
+              <th className="p-4 border-r border-gray-300">No. HP</th>
+              <th className="p-4 border-r border-gray-300 text-center">Hari Terlambat</th>
+              <th className="p-4 border-r border-gray-300 text-center">Tanggal Biasa</th>
+              <th className="p-4">Kirim Manual</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="text-center p-4 text-gray-500">
+                  Tidak ada data.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((m) => (
+                <tr key={m.id} className="border-t border-gray-300 hover:bg-gray-50">
+                  <td className="p-4 text-center border-r border-gray-300">
                     <Checkbox
-                      checked={selectAll}
-                      onCheckedChange={(checked: any) => toggleSelectAll(checked === true)}
+                      checked={selectedMuzakki.includes(m.id)}
+                      onCheckedChange={() => toggleSelect(m.id)}
                     />
-                  </th>
-                  <th className="p-4 border-r border-gray-300">Nama</th>
-                  <th className="p-4 border-r border-gray-300">No. HP</th>
-                  <th className="p-4 border-r border-gray-300">Tanggal Biasa Donasi</th>
-                  <th className="p-4 border-r border-gray-300">Hari Terlambat</th>
-                  <th className="p-4 border-r border-gray-300">Riwayat 3 Bulan</th>
-                  <th className="p-4">Kirim Manual</th>
+                  </td>
+                  <td className="p-4 border-r border-gray-300">{m.name}</td>
+                  <td className="p-4 border-r border-gray-300">{m.phoneNumber}</td>
+                  <td className="p-4 border-r border-gray-300 text-center">{m.daysLate} hari</td>
+                  <td className="p-4 border-r border-gray-300 text-center">Tanggal {m.averageDonationDay}</td>
+                  <td className="p-4">
+                    <Button
+                      className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-1 rounded"
+                      onClick={() => handleKirimManual(m)}
+                    >
+                      Kirim
+                    </Button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {filteredMuzakki.length === 0 ? (
-                  <tr className="border-t border-gray-300">
-                    <td colSpan={7} className="text-center py-4 text-gray-500">
-                      {muzakkiList.length === 0
-                        ? 'Tidak ada donatur yang teridentifikasi telat donasi'
-                        : 'Tidak ditemukan hasil pencarian'}
-                    </td>
-                  </tr>
-                ) : (
-                  filteredMuzakki.map((m) => {
-                    const personalized = pesan
-                      .replace(/{{nama}}/gi, m.name)
-                      .replace(/{{tanggal}}/gi, m.averageDonationDay.toString());
-                    return (
-                      <tr key={m.id} className="border-t border-gray-300 hover:bg-gray-50">
-                        <td className="p-4 text-center border-r border-gray-300">
-                          <Checkbox
-                            checked={m.selected}
-                            onCheckedChange={() => toggleSelect(m.id)}
-                          />
-                        </td>
-                        <td className="p-4 border-r border-gray-300">{m.name}</td>
-                        <td className="p-4 border-r border-gray-300">{m.phoneNumber}</td>
-                        <td className="p-4 border-r border-gray-300 text-center">
-                          Tanggal {m.averageDonationDay}
-                        </td>
-                        <td className="p-4 border-r border-gray-300 text-center">
-                          <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs">
-                            {m.daysLate} hari
-                          </span>
-                        </td>
-                        <td className="p-4 border-r border-gray-300">
-                          <div className="text-xs space-y-1">
-                            {m.donationHistory.map((d, i) => {
-                              const date = new Date(d.date);
-                              return (
-                                <div key={i}>
-                                  {date.toLocaleDateString('id-ID', {
-                                    month: 'short',
-                                    year: 'numeric'
-                                  })} (Tgl {date.getDate()}): Rp{d.amount.toLocaleString('id-ID')}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <Button
-                            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-1 rounded"
-                            onClick={() =>
-                              window.open(`https://wa.me/${m.phoneNumber}?text=${encodeURIComponent(personalized)}`)
-                            }
-                          >
-                            Kirim
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
-          <Button
-            className="bg-orange-500 text-white hover:bg-orange-600 w-full md:w-auto px-6 py-2 rounded-lg"
-            onClick={handleKirim}
-            disabled={muzakkiList.filter((m) => m.selected).length === 0}
-          >
-            Kirim Pesan ke {muzakkiList.filter((m) => m.selected).length} Orang
-          </Button>
-        </>
-      )}
+      <Button
+        className="bg-orange-500 text-white hover:bg-orange-600 w-full md:w-auto px-6 py-2 rounded-lg"
+        onClick={handleKirim}
+      >
+        Kirim Pesan ke {selectedMuzakki.length} Orang
+      </Button>
     </div>
   );
 }

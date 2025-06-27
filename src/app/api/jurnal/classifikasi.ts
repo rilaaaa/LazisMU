@@ -10,7 +10,7 @@ export class DonationClassifier {
     for (const row of input) {
       let is_valid = true;
       for (const field of column_must_not_null) {
-        if (!Object.keys(row).includes(field) || row[field] == null) {
+        if (!row.hasOwnProperty(field) || row[field] == null) {
           is_valid = false;
           break;
         }
@@ -31,21 +31,15 @@ export class DonationClassifier {
       }
     }
 
-    // Determine category, TAPI hanya jika kategori kosong atau tidak valid
+    // Determine category
     for (const row of unique_data) {
-      const sumber = (row['sumber_dana'] as string)?.toLowerCase().trim() || '';
-      const kategori = (row['kategori'] as string)?.toLowerCase().trim();
-
-      if (!kategori || kategori === '' || kategori === 'momentum' || kategori === 'tidak diketahui') {
-        if (sumber === 'zakat') {
-          row['kategori'] = 'Zakat';
-        } else if (sumber === 'infaq') {
-          row['kategori'] = 'Infaq';
-        } else if (sumber === 'dskl') {
-          row['kategori'] = 'Momentum';
-        } else {
-          row['kategori'] = 'Momentum';
-        }
+      const sumber = (row['sumber_dana'] as string).toLowerCase().trim();
+      if (sumber.includes('zakat')) {
+        row['kategori'] = 'Zakat';
+      } else if (sumber.includes('infaq')) {
+        row['kategori'] = 'Infaq';
+      } else {
+        row['kategori'] = 'Momentum';
       }
     }
 
@@ -62,7 +56,7 @@ export class DonationClassifier {
       case 'Infaq':
         return nominal >= 500_000 ? 'Besar' : 'Kecil';
       default:
-        return '';
+        return 'Tidak Diketahui';
     }
   }
 
@@ -84,18 +78,20 @@ export class DonationClassifier {
     const yearly_counts: Record<string, number> = {};
 
     for (const row of data) {
-      const key = `${row['nama']}-${row['kategori']}-${row['month']}-${row['year']}`;
+      const nama = row['nama'] as string;
+      const kategori = row['kategori'] as string;
+      const key = `${nama}-${kategori}-${row['month']}-${row['year']}`;
       donation_counts[key] = (donation_counts[key] || 0) + 1;
 
-      const yearKey = `${row['nama']}-${row['kategori']}-${row['year']}`;
+      const yearKey = `${nama}-${kategori}-${row['year']}`;
       yearly_counts[yearKey] = (yearly_counts[yearKey] || 0) + 1;
     }
 
     for (const row of data) {
-      const kategori = row['kategori'] as string;
       const nama = row['nama'] as string;
-      const yearKey = `${nama}-${kategori}-${row['year']}`;
+      const kategori = row['kategori'] as string;
       const monthKey = `${nama}-${kategori}-${row['month']}-${row['year']}`;
+      const yearKey = `${nama}-${kategori}-${row['year']}`;
 
       row['count'] = donation_counts[monthKey];
       row['yearlyCount'] = yearly_counts[yearKey];

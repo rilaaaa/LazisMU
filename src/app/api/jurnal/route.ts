@@ -267,7 +267,12 @@ async function moveToCleaning(jurnalId: string, transaction?: any) {
 
         const c1 = classifier.kategori_muzaki({ ...latest, kategori });
         const c2 = valid.length >= 3 ? 'Sering' : 'Jarang';
-        const jenis_donatur = kategori === 'Momentum' ? 'Momentum' : (valid.length === 1 ? 'Calon' : `${c1} ${c2}`);
+        const kategoriAsli = (kategori || '').toLowerCase();
+        const isMomentumKategori = kategori === 'Momentum' || /dskl|program|donasi/i.test(kategoriAsli);
+        const jenis_donatur = isMomentumKategori
+            ? 'Momentum'
+            : (valid.length === 1 ? 'Calon' : `${c1} ${c2}`);
+
 
         result.push({
             jurnal_id: jurnalId,

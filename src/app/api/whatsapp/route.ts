@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Template is required and must be a string' }, { status: 400 });
     }
 
-    const ACCESS_TOKEN = "EAARPPEm9XyMBO8XQACs9d9xGrrihqLkmQzPcCRqVe0ByfY2jD4FwRALoRKSOfo3UU4sbPswWHeviIrbxfZCjHkTt7yaD6OumHQhqmCvPdI5q0PzzlDNy49pmEeDaMJV1paEHwINskRd3eHKZA0UGylhBelR5BfPIIuLilJ3ZCzqZAuVjYOvaVJiuJczpMUzWhSEIYyixQphpNWcDzrtZC58UMUgbbVHwz02D4DEK0wu6evAZDZD";
+    const ACCESS_TOKEN = "EAARPPEm9XyMBOxSmZBWHi9jkIhhtZBxiL0grJwHMh1lZCZBdwodZCDjuCzF6gSBHCcdUY6XFQjuZASXowyORiH1oSyKlxvzMIYZAvAmp1dU9iVDvT7hEJ5JPFxAaMf0RiUxDxhrDRQOyqz2nslnhRMun6cD8TrdKnfInjZBHmDZA9HHzu74WJSe75eM3pTPynkHAbV9KzKEJJ7e1ZAUbvJdZAMHOvnY5xobnuX6wzP98UrmHXY3kgZDZD";
     const PHONE_NUMBER_ID = "702625622932177";
 
     const results = await Promise.all(

@@ -64,6 +64,10 @@ export const JurnalData = Database.define('JurnalData', {
         type: DataTypes.STRING,
         allowNull: false
     },
+    kategori: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
     nominal: {
         type: DataTypes.FLOAT,
         allowNull: false
@@ -114,6 +118,10 @@ export const JurnalDataCleaning = Database.define('JurnalDataCleanings', {
     sumber_dana: {
         type: DataTypes.STRING,
         allowNull: false
+    },
+    kategori: { 
+        type: DataTypes.STRING,
+        allowNull: true
     },
     nominal: {
         type: DataTypes.FLOAT,

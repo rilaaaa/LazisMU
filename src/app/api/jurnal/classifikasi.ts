@@ -31,15 +31,21 @@ export class DonationClassifier {
       }
     }
 
-    // Determine category
+    // Determine category, TAPI hanya jika kategori kosong atau tidak valid
     for (const row of unique_data) {
-      const sumber = (row['sumber_dana'] as string).toLowerCase().trim();
-      if (sumber.includes('zakat')) {
-        row['kategori'] = 'Zakat';
-      } else if (sumber.includes('infaq')) {
-        row['kategori'] = 'Infaq';
-      } else {
-        row['kategori'] = 'Momentum';
+      const sumber = (row['sumber_dana'] as string)?.toLowerCase().trim() || '';
+      const kategori = (row['kategori'] as string)?.toLowerCase().trim();
+
+      if (!kategori || kategori === '' || kategori === 'momentum' || kategori === 'tidak diketahui') {
+        if (sumber === 'zakat') {
+          row['kategori'] = 'Zakat';
+        } else if (sumber === 'infaq') {
+          row['kategori'] = 'Infaq';
+        } else if (sumber === 'dskl') {
+          row['kategori'] = 'Momentum';
+        } else {
+          row['kategori'] = 'Momentum';
+        }
       }
     }
 
@@ -56,7 +62,7 @@ export class DonationClassifier {
       case 'Infaq':
         return nominal >= 500_000 ? 'Besar' : 'Kecil';
       default:
-        return 'Tidak Diketahui';
+        return '';
     }
   }
 

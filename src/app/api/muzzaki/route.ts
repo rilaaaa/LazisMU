@@ -1,6 +1,6 @@
 "use server";
 
-import { JurnalData, JurnalDataCleaning } from "@/db/db";
+import { JurnalDataCleaning } from "@/db/db";
 import { JurnalDataRow } from "@/lib/types";
 
 export async function GET() {
@@ -20,6 +20,7 @@ export async function GET() {
             occupation: 'Unknown',
             donationType: row.sumber_dana,
             donorType: row.jenis_donatur,
+            category: row.kategori,
             status: 'Aktif',
             year: row.tahun,
         }

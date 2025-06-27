@@ -101,14 +101,20 @@ export class DonationClassifier {
       row['count'] = donation_counts[monthKey] || 0;
       row['yearlyCount'] = yearly_counts[yearKey] || 0;
 
-      const isMomentumKategori = normalizedKategori === 'Momentum' || /dskl|program|donasi/i.test(kategoriAsli);
+      // deteksi apakah SEMUA jenis kategori user ini hanya mengandung kata program/dskl/donasi
+      const isPureMomentum = kategoriAsli.includes('donasi') || kategoriAsli.includes('program') || kategoriAsli.includes('dskl');
+      const isSingleAndMomentum = namaCount[nama] === 1 && isPureMomentum;
 
-      if (isMomentumKategori) {
+      if (isSingleAndMomentum) {
         row['jenis_donatur'] = 'Momentum';
         row['c1'] = '-';
         row['c2'] = '-';
       } else if ((normalizedKategori === 'Zakat' || normalizedKategori === 'Infaq') && namaCount[nama] === 1) {
         row['jenis_donatur'] = 'Calon';
+        row['c1'] = '-';
+        row['c2'] = '-';
+      } else if (normalizedKategori === 'Momentum') {
+        row['jenis_donatur'] = 'Momentum';
         row['c1'] = '-';
         row['c2'] = '-';
       } else {

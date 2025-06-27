@@ -47,6 +47,15 @@ function normalizePhoneNumber(no_hp: string): string {
     return cleaned;
 }
 
+function cleanKategori(kategori: string): string {
+    if (!kategori) return '';
+    const lower = kategori.toLowerCase().trim();
+    if (lower.includes('zakat')) return 'zakat';
+    if (lower.includes('infaq')) return 'infaq';
+    if (/(dskl|donasi|program)/i.test(lower)) return 'momentum';
+    return lower;
+}
+
 export async function GET(request: Request) {
     try {
         const url = new URL(request.url);
@@ -263,16 +272,20 @@ async function moveToCleaning(jurnalId: string, transaction?: any) {
 
         const nama = related.map(e => e.nama).reduce((a, b) => b.length > a.length ? b : a, '');
         const sumber = related.map(e => e.sumber_dana).filter(Boolean).join(' / ');
-        const kategori = latest.kategori || 'Tidak Diketahui';
+        const kategoriList = related.map(e => (e.kategori || '').toLowerCase().trim());
 
-        const c1 = classifier.kategori_muzaki({ ...latest, kategori });
-        const c2 = valid.length >= 3 ? 'Sering' : 'Jarang';
-        const kategoriAsli = (kategori || '').toLowerCase();
-        const isMomentumKategori = kategori === 'Momentum' || /dskl|program|donasi/i.test(kategoriAsli);
-        const jenis_donatur = isMomentumKategori
-            ? 'Momentum'
-            : (valid.length === 1 ? 'Calon' : `${c1} ${c2}`);
+        const uniqueKategori = Array.from(new Set(kategoriList));
 
+        const onlyMomentum = uniqueKategori.every(k => /dskl|donasi|program/i.test(k));
+        const onlyOneKategori = uniqueKategori.length === 1;
+        const validKategori = uniqueKategori.filter(k => ['zakat', 'infaq'].includes(k));
+
+        let jenis_donatur = 'Momentum';
+        if (validKategori.length > 0 && (!onlyMomentum || validKategori.length > 1)) {
+            const c1 = classifier.kategori_muzaki({ ...latest, kategori: validKategori[0] });
+            const c2 = valid.length >= 3 ? 'Sering' : 'Jarang';
+            jenis_donatur = valid.length === 1 ? 'Calon' : `${c1} ${c2}`;
+        }
 
         result.push({
             jurnal_id: jurnalId,
@@ -285,7 +298,7 @@ async function moveToCleaning(jurnalId: string, transaction?: any) {
             sumber_dana: sumber || latest.sumber_dana || '',
             nominal: avgNominal,
             jenis_donatur,
-            kategori,
+            kategori: latest.kategori || 'Tidak Diketahui',
             created_at: new Date(),
             updated_at: new Date()
         });

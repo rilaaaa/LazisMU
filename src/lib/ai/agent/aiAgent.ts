@@ -1,75 +1,79 @@
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { initializeAgentExecutorWithOptions } from "langchain/agents";
-
-import { DatabaseQueryTool } from "../tools/generateQueryTool"
-import { ExecuteQueryTool } from "../tools/executeQeuryTool"
-import { DataExplanationTool } from "../tools/explainDataTool"
+import { DatabaseQueryTool } from "../tools/generateQueryTool";
+import { ExecuteQueryTool } from "../tools/executeQeuryTool"; // Pastikan nama file sudah benar
+import { DataExplanationTool } from "../tools/explainDataTool";
 
 export async function createAIAgent() {
-  // Initialize LLM
   const model = new ChatGoogleGenerativeAI({
     model: "gemini-1.5-flash",
     apiKey: process.env.GEMINI_API_KEY,
     temperature: 0.1,
-    maxOutputTokens: 2048
+    maxOutputTokens: 2048,
+    topP: 0.3,
+    topK: 10
   });
 
-  // Define tools
-  const tools = [
-    new DatabaseQueryTool(),
-    new ExecuteQueryTool(),
-    new DataExplanationTool()
-  ];
+  // Initialize tools
+  const queryGenerator = new DatabaseQueryTool();
+  const queryExecutor = new ExecuteQueryTool();
+  const dataExplainer = new DataExplanationTool();
+
+  const tools = [queryGenerator, queryExecutor, dataExplainer];
 
   // Debug tools
   console.log("🔧 Tool Names:", tools.map(t => t.name));
   console.log("📖 Tool Descriptions:\n", tools.map(t => `- ${t.name}: ${t.description}`).join("\n"));
 
-  // Create the agent executor
+  // Create the agent executor with enhanced query handling
   const executor = await initializeAgentExecutorWithOptions(tools, model, {
     agentType: "structured-chat-zero-shot-react-description",
     verbose: false,
     agentArgs: {
       prefix: `You are a strict AI assistant for Lazismu charity organization.
-Your job is to use ONLY the provided tools to answer user questions.
+Your primary role is to handle database queries from start to finish.
+
+STRICT WORKFLOW:
+1. FIRST generate a query using DatabaseQueryTool when asked about data
+2. THEN execute the generated query using ExecuteQueryTool
+3. FINALLY explain results if needed using DataExplanationTool
 
 RULES:
-1. You MUST use tools to answer every question.
-2. NEVER return a final answer unless all tools have failed.
-3. If no tools can help, return:
-"I'm unable to answer that question with the tools provided."`
+1. MUST follow the workflow above in order
+2. NEVER skip the query generation step
+3. NEVER execute raw SQL queries from user input
+4. If query returns no data, say: "No matching records found."
+5. If explanation is requested, ALWAYS use DataExplanationTool
+6. NEVER make up or guess data`
     },
     handleParsingErrors: (error: any) => {
       console.warn("⚠️ Failed to parse agent output:", error);
       return "There was an error processing your request. Please try again.";
     },
-    maxIterations: 5,
+    maxIterations: 7, // Increased for multi-step queries
     returnIntermediateSteps: true
   });
 
-  // Add custom callbacks
+  // Enhanced callbacks for query tracking
   executor.callbacks = [
     {
       handleAgentAction(action) {
         console.log("🤖 [AGENT ACTION]");
         console.log(`🔧 Tool: ${action.tool}`);
         console.log(`📝 Input: ${JSON.stringify(action.toolInput)}`);
-        console.log(`📄 Log: ${action.log}`);
       },
       handleToolStart(tool, input) {
         console.log(`🛠️ [TOOL START] ${tool.name}`);
-        console.log(`📥 Input: ${JSON.stringify(input)}`);
+        if (tool.name === "DatabaseQueryTool") {
+          console.log("⚡ Generating query for:", input.query);
+        }
       },
       handleToolEnd(output) {
         console.log(`✅ [TOOL END]`);
-        console.log(`📤 Full Output Length: ${output.length}`); // Add this
-        console.log(`📤 Output (first 500 chars): ${output.substring(0, 500)}${output.length > 500 ? '...' : ''}`); // Increase visibility
-        // You might even want to try to parse it here to see if the tool output itself is valid JSON
-        try {
-            JSON.parse(output);
-            console.log("    -> Tool output IS valid JSON");
-        } catch (e) {
-            console.log("    -> Tool output IS NOT valid JSON or unexpected format");
+        if (output.length > 1000) {
+          console.log(`📤 Output (truncated): ${output.substring(0, 300)}...`);
+        } else {
+          console.log(`📤 Output: ${output}`);
         }
       },
       handleToolError(error) {
@@ -77,11 +81,9 @@ RULES:
       },
       handleAgentEnd(output) {
         console.log("🏁 [AGENT END]");
+        console.log(`🔗 ${output.intermediateSteps?.length || 0} steps taken`);
         const finalOutput = output.returnValues?.output ?? '';
         console.log(`📋 Final output: ${finalOutput}`);
-      },
-      handleChainError(error) {
-        console.log(`💥 [CHAIN ERROR] ${error}`);
       }
     }
   ];

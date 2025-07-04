@@ -131,7 +131,11 @@ export const JurnalDataCleaning = Database.define('JurnalDataCleanings', {
         type: DataTypes.STRING,
         allowNull: false
     }
+}, {
+  tableName: 'JurnalDataCleanings',
+  freezeTableName: true
 });
+
 
 // Hubungan antar tabel
 Jurnal.hasMany(JurnalData, { foreignKey: 'jurnal_id' });

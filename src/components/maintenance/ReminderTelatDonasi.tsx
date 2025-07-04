@@ -38,16 +38,11 @@ export default function ReminderTelatDonasi({ onBack, onLoaded }: Props) {
   const today = new Date();
 
   const checkConsistent = (history: DonationHistory[]) => {
-    if (history.length < 3) return { isValid: false, averageDay: 0 };
+    if (history.length < 1) return { isValid: false, averageDay: 0 }; // Ubah minimal jadi 1
     const sorted = [...history].sort((a, b) => +new Date(b.date) - +new Date(a.date)).slice(0, 3);
-    const months = sorted.map(d => new Date(d.date).getMonth());
     const days = sorted.map(d => new Date(d.date).getDate());
     const averageDay = Math.round(days.reduce((a, b) => a + b, 0) / days.length);
-    const consistentMonths = months.every((m, i) =>
-      i === 0 || months[i - 1] - m === 1 || (months[i - 1] === 0 && m === 11)
-    );
-    const consistentDays = days.every(day => Math.abs(day - averageDay) <= 3);
-    return { isValid: consistentMonths && consistentDays, averageDay };
+    return { isValid: true, averageDay };
   };
 
   const calculateDaysLate = (avgDay: number) => {
@@ -61,12 +56,16 @@ export default function ReminderTelatDonasi({ onBack, onLoaded }: Props) {
         const res = await fetch('/api/muzzaki');
         const json = await res.json();
         const raw = json?.data || [];
+        console.log("Data dari API:", raw);
 
         const final: Muzakki[] = raw.map((d: any) => {
-          const history = (d.riwayat || d.donationHistory || []).map((r: any) => ({
-            date: r?.tanggal || r?.date || '',
-            amount: r?.nominal || r?.amount || 0,
-          })).filter(h => h.date);
+          const history = (d.riwayat || []).map((r: any) => {
+            const parsedDate = new Date(r?.tanggal);
+            return {
+              date: isNaN(parsedDate.getTime()) ? '' : parsedDate.toISOString(),
+              amount: r?.nominal || 0,
+            };
+          }).filter(h => h.date);
 
           const { isValid, averageDay } = checkConsistent(history);
           if (!isValid) return null;
@@ -82,9 +81,9 @@ export default function ReminderTelatDonasi({ onBack, onLoaded }: Props) {
           if (daysLate <= 0) return null;
 
           return {
-            id: d.id || d.no_hp || d.phoneNumber,
-            name: d.nama || d.name || 'Tanpa Nama',
-            phoneNumber: d.no_hp || d.phoneNumber || '',
+            id: d.id || d.phoneNumber,
+            name: d.name || 'Tanpa Nama',
+            phoneNumber: d.phoneNumber || '',
             lastDonationDate: history[0]?.date,
             status: 'Telat Donasi',
             selected: false,
@@ -94,6 +93,8 @@ export default function ReminderTelatDonasi({ onBack, onLoaded }: Props) {
             averageDonationDay: averageDay,
           };
         }).filter(Boolean);
+
+        console.log("Final muzakki list:", final);
 
         setMuzakkiList(final);
         if (onLoaded) onLoaded(final);

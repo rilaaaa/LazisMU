@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback } from 'react'
 import { ArrowUpTrayIcon } from '@heroicons/react/24/outline'
+import * as XLSX from 'xlsx'
 import { uploadJurnal, MuzzakiJurnalUploadData } from '@/api/database'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,8 +16,6 @@ export function FileUploadModal({ isOpen, onClose, onUploadSuccess }: FileUpload
   const [isUploading, setIsUploading] = useState(false)
   const [kategori, setKategori] = useState('')
 
-  const jenisJurnal = kategori === 'penyaluran' ? 'penyaluran' : kategori === 'perhimpunan' ? 'perhimpunan' : ''
-
   const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
@@ -26,44 +25,81 @@ export function FileUploadModal({ isOpen, onClose, onUploadSuccess }: FileUpload
   }, [])
 
   const handleImport = useCallback(async () => {
-    if (!selectedFile || !jenisJurnal) return
+  if (!selectedFile || !kategori) return
 
-    setIsUploading(true)
-    try {
-      const base64String = await fileToBase64(selectedFile)
-      const data: MuzzakiJurnalUploadData = {
-        attachment_name: fileName,
-        attachment_base64: base64String,
-        jenisJurnal :kategori,
+  setIsUploading(true)
+  try {
+    const dataBuffer = await selectedFile.arrayBuffer()
+
+    const base64String = btoa(
+      new Uint8Array(dataBuffer).reduce(
+        (data, byte) => data + String.fromCharCode(byte),
+        ''
+      )
+    )
+
+    const workbook = XLSX.read(dataBuffer, { type: 'array' })
+    const sheetName = workbook.SheetNames[0]
+    const sheet = workbook.Sheets[sheetName]
+
+    const sheetData: any[][] = XLSX.utils.sheet_to_json(sheet, {
+      header: 1,
+      defval: '',
+    })
+
+    const headers = sheetData[0]
+    const rows = sheetData.slice(1)
+
+    const formattedData = rows.map((row) => {
+      const rowObj: any = {}
+      headers.forEach((header: string, idx: number) => {
+        rowObj[header] = row[idx]
+      })
+
+      return {
+        nama: rowObj['Nama Donatur'] || rowObj['nama'] || '',
+        hp: rowObj['No HP'] || rowObj['hp'] || '',
+        jumlah: parseFloat(rowObj['Jumlah']) || 0,
+        kategori,
       }
+    })
 
-      const res = await uploadJurnal(data)
+    const data: MuzzakiJurnalUploadData = {
+      attachment_name: selectedFile.name,
+      attachment_base64: base64String,
+      jenisJurnal: kategori,
+      data: formattedData,
+    }
 
-      if (res) {
-        toast({
-          title: 'Upload successful',
-          description: 'Your file has been uploaded successfully.',
-        })
-        onUploadSuccess()
-        onClose()
-      } else {
-        toast({
-          title: 'Upload failed',
-          description: 'There was an error uploading your file. Please try again.',
-          variant: 'destructive',
-        })
-      }
-    } catch (error) {
-      console.error('Upload failed:', error)
+    const res = await uploadJurnal(data)
+
+    if (res) {
       toast({
-        title: 'Upload failed',
-        description: `There was an error uploading your file: ${error}. Please try again.`,
+        title: 'Upload berhasil',
+        description: 'Data dari file berhasil diunggah.',
+      })
+      onUploadSuccess()
+      onClose()
+    } else {
+      toast({
+        title: 'Gagal upload',
+        description: 'Terjadi kesalahan saat mengunggah data.',
         variant: 'destructive',
       })
-    } finally {
-      setIsUploading(false)
     }
-  }, [selectedFile, fileName, jenisJurnal, onClose, onUploadSuccess])
+  } catch (error) {
+    console.error('Upload error:', error)
+    toast({
+      title: 'Upload gagal',
+      description: `Terjadi kesalahan saat membaca file: ${error}`,
+      variant: 'destructive',
+    })
+  } finally {
+    setIsUploading(false)
+  }
+}, [selectedFile, kategori, onClose, onUploadSuccess])
+
+
 
   const handleCancelFileSelection = useCallback(() => {
     setSelectedFile(null)
@@ -74,14 +110,14 @@ export function FileUploadModal({ isOpen, onClose, onUploadSuccess }: FileUpload
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md mx-auto w-[calc(100%-2rem)] sm:w-full rounded">
         <DialogHeader>
-          <DialogTitle>Upload File</DialogTitle>
+          <DialogTitle>Upload File Excel</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4 px-2 sm:px-4">
           <div className="flex items-center gap-4">
             <Input
               id="file-upload"
               type="file"
-              accept=".xlsx, .xls, .csv"
+              accept=".xlsx, .xls"
               className="sr-only"
               onChange={handleFileChange}
             />
@@ -90,15 +126,11 @@ export function FileUploadModal({ isOpen, onClose, onUploadSuccess }: FileUpload
               className="flex items-center gap-2 cursor-pointer text-sm font-medium text-primary hover:underline"
             >
               <ArrowUpTrayIcon className="h-4 w-4" />
-              {selectedFile ? selectedFile.name : 'Choose file'}
+              {selectedFile ? selectedFile.name : 'Pilih file'}
             </label>
             {selectedFile && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCancelFileSelection}
-              >
-                Cancel
+              <Button variant="outline" size="sm" onClick={handleCancelFileSelection}>
+                Batal
               </Button>
             )}
           </div>
@@ -109,7 +141,7 @@ export function FileUploadModal({ isOpen, onClose, onUploadSuccess }: FileUpload
               id="file-name"
               value={fileName}
               onChange={(e) => setFileName(e.target.value)}
-              placeholder="File name"
+              placeholder="Nama file"
             />
           )}
 
@@ -141,32 +173,19 @@ export function FileUploadModal({ isOpen, onClose, onUploadSuccess }: FileUpload
 
         <div className="flex flex-col sm:flex-row justify-end gap-4 mt-4">
           <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
-            Cancel
+            Batal
           </Button>
           <Button
             onClick={handleImport}
             disabled={!selectedFile || isUploading || !kategori}
             className="w-full sm:w-auto"
           >
-            {isUploading ? 'Uploading...' : 'Import'}
+            {isUploading ? 'Mengunggah...' : 'Import'}
           </Button>
         </div>
       </DialogContent>
     </Dialog>
   )
-}
-
-async function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = reader.result as string
-      const base64String = result.split(',')[1]
-      resolve(base64String)
-    }
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
 }
 
 export default FileUploadModal

@@ -1,10 +1,10 @@
 import { Sequelize, DataTypes } from 'sequelize';
 
-export const Database = new Sequelize('lazismu', 'zulfanfaizun', '', {
-    host: 'localhost',
+export const Database = new Sequelize('postgres', 'postgres.qxqtzbhifvmcwsevfypf', 'lazismu', {
+    host: 'aws-0-ap-southeast-1.pooler.supabase.com',
     dialect: 'postgres',
     logging: false,
-    // port: 5432, // jika pakai port custom
+    port: 6543,
 });
 
 export const Jurnal = Database.define('jurnals', {
@@ -64,6 +64,10 @@ export const JurnalData = Database.define('JurnalData', {
         type: DataTypes.STRING,
         allowNull: false
     },
+    kategori: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
     nominal: {
         type: DataTypes.FLOAT,
         allowNull: false
@@ -114,6 +118,10 @@ export const JurnalDataCleaning = Database.define('JurnalDataCleanings', {
     sumber_dana: {
         type: DataTypes.STRING,
         allowNull: false
+    },
+    kategori: { 
+        type: DataTypes.STRING,
+        allowNull: true
     },
     nominal: {
         type: DataTypes.FLOAT,

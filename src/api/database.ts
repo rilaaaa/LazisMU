@@ -25,11 +25,18 @@ export async function deleteJurnal(id: number) {
     const res = await fetch(`${API_HOST}/api/jurnal?id=${id}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Failed to delete jurnal data');
-    const data = await res.json();
-    return data.status === 'success';
+
+    const resText = await res.text();
+
+    if (!res.ok) {
+      console.error('❌ Failed to delete jurnal data:', resText);
+      throw new Error(`Failed to delete jurnal data: ${resText}`);
+    }
+
+    const resData = JSON.parse(resText);
+    return resData.status === 'success';
   } catch (err) {
-    console.error(err);
+    console.error('❌ Error in deleteJurnal:', err);
     return false;
   }
 }
@@ -38,6 +45,12 @@ export type MuzzakiJurnalUploadData = {
   attachment_name: string;
   attachment_base64: string;
   jenisJurnal: string;
+  data?: {
+    nama: string;
+    hp: string;
+    jumlah: number;
+    kategori: string;
+  }[];
 };
 
 export async function uploadJurnal(data: MuzzakiJurnalUploadData): Promise<boolean> {
@@ -53,27 +66,36 @@ export async function uploadJurnal(data: MuzzakiJurnalUploadData): Promise<boole
     const resText = await res.text();
     const resData = JSON.parse(resText);
 
+    if (!res.ok) {
+      console.error('❌ Upload failed:', resData);
+      return false;
+    }
+
     return resData.status === 'success';
   } catch (err) {
-    console.error('Upload error:', err);
+    console.error('❌ Upload error:', err);
     return false;
   }
 }
 
-// Helper function
+// ✅ Helper function untuk fetch data dari API
 async function fetchData(endpoint: string, errorMessage: string) {
   try {
-    const res = await fetch(`${API_HOST}${endpoint}`);
+    const fullUrl = `${API_HOST}${endpoint}`;
+    console.log('📡 Fetching:', fullUrl);
+
+    const res = await fetch(fullUrl);
+    const text = await res.text();
+
     if (!res.ok) {
-      const errorText = await res.text();
-      console.error(`Fetch error: ${res.status} ${res.statusText}`);
-      console.error(`Response body: ${errorText}`);
-      throw new Error(errorMessage);
+      console.error(`❌ ${errorMessage}:`, text);
+      throw new Error(`${errorMessage}: ${text}`);
     }
-    const data = await res.json();
-    return data.data;
+
+    const data = JSON.parse(text);
+    return data.data ?? data;
   } catch (err) {
-    console.error('fetchData catch block:', err);
+    console.error('❌ fetchData error:', err);
     return [];
   }
 }

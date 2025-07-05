@@ -2,10 +2,11 @@
 
 import { Sequelize, DataTypes } from 'sequelize';
 
-export const Database = new Sequelize('lazismu', 'postgres', '2200016063', {
-    host: 'localhost',
+export const Database = new Sequelize('postgres', 'postgres.qxqtzbhifvmcwsevfypf', 'lazismu', {
+    host: 'aws-0-ap-southeast-1.pooler.supabase.com',
     dialect: 'postgres',
     logging: false,
+    port: 6543
 });
 
 // --- MODEL YANG SUDAH ADA (TIDAK DIUBAH) ---
@@ -46,7 +47,8 @@ export const JurnalData = Database.define('JurnalData', {
     via: { type: DataTypes.STRING, allowNull: false },
     sumber_dana: { type: DataTypes.STRING, allowNull: false },
     nominal: { type: DataTypes.FLOAT, allowNull: false },
-    jenis_donatur: { type: DataTypes.STRING, allowNull: false }
+    jenis_donatur: { type: DataTypes.STRING, allowNull: false },
+    kategori: { type: DataTypes.STRING, allowNull: false }
 });
 
 export const JurnalDataCleaning = Database.define('JurnalDataCleanings', {
@@ -70,7 +72,8 @@ export const JurnalDataCleaning = Database.define('JurnalDataCleanings', {
     via: { type: DataTypes.STRING, allowNull: false },
     sumber_dana: { type: DataTypes.STRING, allowNull: false },
     nominal: { type: DataTypes.FLOAT, allowNull: false },
-    jenis_donatur: { type: DataTypes.STRING, allowNull: false }
+    jenis_donatur: { type: DataTypes.STRING, allowNull: false },
+    kategori: { type: DataTypes.STRING, allowNull: false }
 });
 
 // ==========================================================

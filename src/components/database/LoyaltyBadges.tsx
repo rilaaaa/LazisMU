@@ -22,19 +22,17 @@ function Card({children, className}: {children: React.ReactNode, className?: str
 
 function BadgeCard({ badge }: BadgeCardProps) {
   return (
-    <Card className="p-4 sm:p-6 w-full min-h-[240px]">
+    <Card className="p-4 sm:p-6 w-full min-h-[220px]">
       <div className="flex flex-col justify-between h-full">
         <div className="flex flex-col items-center mb-4 space-y-2">
           <Image 
             src={badge.image} 
             alt={`${badge.type} badge`}
-            width={96} 
-            height={96}
-            className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32"
+            width={50} 
+            height={50}
+            className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20"
           />
-          <div className="text-base sm:text-lg text-gray-700 font-medium text-center">
-            {badge.type}
-          </div>
+          <div className="text-sm text-gray-600">{badge.type}</div>
         </div>
         <div className="flex flex-col items-center">
           <div className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold text-gray-700">
@@ -46,6 +44,7 @@ function BadgeCard({ badge }: BadgeCardProps) {
     </Card>
   );
 }
+
 
 export default function LoyaltyBadges({ muzakkiData }: LoyaltyBadgesProps) {
   const loyaltyBadges: Badge[] = useMemo(() => {
@@ -69,12 +68,12 @@ export default function LoyaltyBadges({ muzakkiData }: LoyaltyBadgesProps) {
     };
 
     return [
-      { type: 'Kecil Jarang', count: calculateBadgeCount('Kecil Jarang'), image: '/icon/medalihijau.svg' },
-      { type: 'Besar Jarang', count: calculateBadgeCount('Besar Jarang'), image: '/icon/medalibiru.svg' },
-      { type: 'Kecil Sering', count: calculateBadgeCount('Kecil Sering'), image: '/icon/medalikuning.svg' },
-      { type: 'Besar Sering', count: calculateBadgeCount('Besar Sering'), image: '/icon/medalimerah.svg' },
-      { type: 'Momentum', count: calculateBadgeCount('Momentum'), image: '/icon/medaliungu.svg' },
-      { type: 'Calon', count: calculateBadgeCount('Calon'), image: '/icon/medalicoklat.svg' },
+      { type: 'Kecil Jarang', count: calculateBadgeCount('Kecil Jarang'), image: '/icon/sporadic.svg' },
+      { type: 'Besar Jarang', count: calculateBadgeCount('Besar Jarang'), image: '/icon/regular.svg' },
+      { type: 'Kecil Sering', count: calculateBadgeCount('Kecil Sering'), image: '/icon/generous.svg' },
+      { type: 'Besar Sering', count: calculateBadgeCount('Besar Sering'), image: '/icon/major.svg' },
+      { type: 'Momentum', count: calculateBadgeCount('Momentum'), image: '/icon/momentum.png' },
+      { type: 'Calon', count: calculateBadgeCount('Calon'), image: '/icon/calon.png' },
     ];
   }, [muzakkiData]);
 
@@ -89,3 +88,4 @@ export default function LoyaltyBadges({ muzakkiData }: LoyaltyBadgesProps) {
     </section>
   )
 }
+

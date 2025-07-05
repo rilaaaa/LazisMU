@@ -99,16 +99,22 @@ export interface JournalDetailTableProps {
   searchTerm: string;
 }
 
+// Di file src/lib/types.ts
+
 // Muzakki related types
 export type Muzakki = {
+  // Hapus baris `[x: string]: number;` dari sini
   id: number;
   name: string;
+  nominal: number; // <-- PASTIKAN PROPERTI INI ADA
   phoneNumber: string;
   gender: string;
   age: number;
   occupation: string;
   donationType: string;
   donorType: string;
+  category: string;
+  source: string; // <-- INI PROPERTI YANG AKAN KITA GUNAKAN
   status: string;
   year: number;
 };

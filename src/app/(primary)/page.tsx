@@ -1,128 +1,125 @@
+// File: D:\Semester_6\kepin\new\LazisMU-maintenance_lintang\LazisMU-maintenance_lintang\src\app\(primary)\page.tsx
+
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import Notifications from "@/components/common/Notifications";
 import ChartSection from "@/components/dashboard/Chart";
-import { getMuzakki } from "@/api/database";
+import PenyaluranCharts from "@/components/dashboard/PenyaluranCharts";
+import { getAllJurnalCleaning } from "@/api/database";
 import { Muzakki } from "@/lib/types";
-import YearFilter from "@/components/common/YearFilter";
-import { ChevronDownIcon } from "@heroicons/react/24/outline";
+
+const formatNumber = (num: number) => {
+  return new Intl.NumberFormat('id-ID').format(num);
+};
 
 export default function DashboardPage() {
-  const [muzakkiData, setMuzakkiData] = useState<Muzakki[]>([]);
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
-  const [selectedDonorType, setSelectedDonorType] = useState<string | null>(null);
-  const [selectedDonationType, setSelectedDonationType] = useState<string | null>(null);
-  const [selectedGender, setSelectedGender] = useState<string | null>(null);
-
-  const fetchMuzakkiData = async () => {
-    const data = await getMuzakki();
-    setMuzakkiData(data);
-  };
+  const [processedMuzakkiData, setProcessedMuzakkiData] = useState<Muzakki[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchMuzakkiData();
+    const fetchAndProcessCleaningData = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const cleaningEntries: any[] = await getAllJurnalCleaning();
+        if (!cleaningEntries || cleaningEntries.length === 0) {
+          setProcessedMuzakkiData([]);
+          setIsLoading(false);
+          return;
+        }
+        const allMuzakkiEntries: Muzakki[] = cleaningEntries.map(entry => ({
+          id: entry.id, name: entry.nama,
+          nominal: parseFloat(entry.nominal) || 0,
+          source: entry.sumber_dana, donorType: entry.jenis_donatur,
+          year: entry.tahun, tanggal: new Date(entry.tanggal),
+          phoneNumber: entry.no_hp || '', gender: 'Unknown', age: 0,
+          donationType: entry.zis || 'Lainnya', category: 'Unknown', status: 'Active',
+        }));
+        setProcessedMuzakkiData(allMuzakkiEntries);
+      } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : "Terjadi kesalahan";
+        console.error("--- FATAL ERROR:", errorMessage);
+        setError("Gagal mengambil data dari server.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchAndProcessCleaningData();
   }, []);
 
-  const totalMuzakki = muzakkiData.length;
+  // ---- PERBAIKAN LOGIKA UTAMA DI SINI ----
+  const statCounts = useMemo(() => {
+    // 1. Buat peta frekuensi dari seluruh data
+    const phoneFrequencyMap = new Map<string, number>();
+    processedMuzakkiData.forEach(item => {
+      if (item.phoneNumber) {
+        phoneFrequencyMap.set(item.phoneNumber, (phoneFrequencyMap.get(item.phoneNumber) || 0) + 1);
+      }
+    });
 
-  const handleYearChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedYear(Number(e.target.value));
-  };
+    // 2. Hitung Total, Baru, dan Repeat berdasarkan peta frekuensi
+    const totalUnique = phoneFrequencyMap.size;
+    let newDonors = 0;
+    let repeatDonors = 0;
 
-  const handleDonorTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedDonorType(e.target.value);
-  };
+    phoneFrequencyMap.forEach((count) => {
+      // Jika donatur hanya donasi 1 kali, dia 'Baru'
+      if (count === 1) {
+        newDonors++;
+      } 
+      // Jika donasi lebih dari 1 kali, dia 'Repeat'
+      else if (count > 1) {
+        repeatDonors++;
+      }
+    });
 
-  const handleDonationTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedDonationType(e.target.value);
-  };
-
-  const handleGenderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedGender(e.target.value);
-  };
-
-  const filteredMuzakkiData = muzakkiData
-    .filter((item) => (selectedYear ? item.year === selectedYear : true))
-    .filter((item) => (selectedDonorType ? item.donorType === selectedDonorType : true))
-    .filter((item) => (selectedDonationType ? item.donationType === selectedDonationType : true))
-    .filter((item) => (selectedGender ? item.gender === selectedGender : true));
-
-  const selectedFilters = {
-    year: selectedYear,
-    donorType: selectedDonorType,
-    donationType: selectedDonationType,
-    gender: selectedGender,
-  };
+    return {
+      totalUnique,
+      new: newDonors,
+      repeat: repeatDonors, // Ini adalah jumlah ORANG yang repeat
+    };
+  }, [processedMuzakkiData]);
 
   return (
-    <main className="p-6">
+    <main className="p-6 bg-gray-100 min-h-screen">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-semibold">Dashboard</h1>
+        <h1 className="text-3xl font-bold text-gray-700">Dashboard</h1>
         <Notifications />
       </div>
 
-      {/*Filter Section*/}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 space-y-4 sm:space-y-0">
-        <div className="flex flex-wrap items-center space-x-4">
-          <YearFilter
-            selectedYear={selectedYear}
-            handleYearChange={handleYearChange}
-            yearOptions={[...new Set(muzakkiData.map((item) => item.year ? item.year.toString() : ''))].filter(Boolean)}
-          />
+      {isLoading && <div className="text-center py-20 text-gray-500">Memuat data dashboard...</div>}
+      {!isLoading && error && <div className="text-center py-20 text-red-500 bg-red-50 p-4 rounded-lg"><p className="font-bold">Terjadi Error</p><p>{error}</p></div>}
 
-          {/*Donor Type Filter*/}
-          <div className="relative">
-            <select onChange={handleDonorTypeChange} value={selectedDonorType || ""}
-              className="appearance-none bg-white border border-gray-300 rounded-md pl-3 pr-10 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
-            >
-              <option value="">All Donor Types</option>
-              {[...new Set(muzakkiData.map((item) => item.donorType))].map((type) => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </select>
-            <ChevronDownIcon className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
+      {!isLoading && !error && (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <ChartSection data={processedMuzakkiData} />
+            </div>
+            
+            <div className="bg-white p-4 rounded-lg shadow-md space-y-3 flex flex-col justify-center">
+                <div className="flex justify-between items-center bg-orange-400/80 rounded-lg shadow-sm text-sm">
+                    <div className="bg-white px-4 py-3 rounded-l-lg font-semibold text-gray-700 w-1/3">Total Muzakki</div>
+                    <div className="text-white font-bold px-4 text-center flex-1">{formatNumber(statCounts.totalUnique)} Orang</div>
+                </div>
+                <div className="flex justify-between items-center bg-orange-400/80 rounded-lg shadow-sm text-sm">
+                    <div className="bg-white px-4 py-3 rounded-l-lg font-semibold text-gray-700 w-1/3">Muzakki Baru</div>
+                    <div className="text-white font-bold px-4 text-center flex-1">{formatNumber(statCounts.new)} Orang</div>
+                </div>
+                <div className="flex justify-between items-center bg-orange-400/80 rounded-lg shadow-sm text-sm">
+                    <div className="bg-white px-4 py-3 rounded-l-lg font-semibold text-gray-700 w-1/3">Repeat Order</div>
+                    <div className="text-white font-bold px-4 text-center flex-1">{formatNumber(statCounts.repeat)} Orang</div>
+                </div>
+            </div>
           </div>
-
-          {/*Donation Type Filter*/}
-          <div className="relative">
-            <select onChange={handleDonationTypeChange} value={selectedDonationType || ""}
-              className="appearance-none bg-white border border-gray-300 rounded-md pl-3 pr-10 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
-            >
-              <option value="">All Donation Types</option>
-              {[...new Set(muzakkiData.map((item) => item.donationType))].map((type) => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </select>
-            <ChevronDownIcon className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
-          </div>
-
-          {/* Gender Type Filter */}
-          <div className="relative">
-            <select onChange={handleGenderChange} value={selectedGender || ""}
-              className="appearance-none bg-white border border-gray-300 rounded-md pl-3 pr-10 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
-            >
-              <option value="">All Genders</option>
-              {[...new Set(muzakkiData.map((item) => item.gender))].map((gender) => (
-                <option key={gender} value={gender}>{gender}</option>
-              ))}
-            </select>
-            <ChevronDownIcon className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
-          </div>
-        </div>
+          <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-gray-700">Penyaluran</h1>
       </div>
-
-      <div className="max-w-64 overflow-hidden rounded-xl bg-white shadow-lg my-5">
-        <div className="flex items-center justify-between">
-          <div className="p-4">
-            <h2 className="font-bold text-gray-900">Total Muzakki</h2>
-          </div>
-          <div className="bg-[#FF5722] p-4">
-            <span className="font-bold text-white">{totalMuzakki}</span>
-          </div>
-        </div>
-      </div>
-      <ChartSection data={filteredMuzakkiData} selectedFilters={selectedFilters} />
+          <PenyaluranCharts />
+        </>
+      )}
     </main>
   );
 }

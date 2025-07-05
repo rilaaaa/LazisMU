@@ -1,3 +1,5 @@
+// File: D:\Semester_6\kepin\new\LazisMU-maintenance_lintang\LazisMU-maintenance_lintang\src\app\(primary)\database\page.tsx
+
 'use client'
 
 import React, { useState, useMemo, useEffect } from 'react'
@@ -9,12 +11,14 @@ import Pagination from '@/components/common/Pagination'
 import Notifications from '@/components/common/Notifications'
 import { ITEMS_PER_PAGE } from '@/lib/constants'
 import { filterMuzakki, paginateMuzakki } from '@/lib/utils'
+// Mengambil data dari getMuzakki, yang mungkin merupakan sumber data lain/lama
 import { getMuzakki } from '@/api/database'
+import { Muzakki } from '@/lib/types'
 
 export default function DatabasePage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
-  const [muzakkiData, setMuzakkiData] = useState([])
+  const [muzakkiData, setMuzakkiData] = useState<Muzakki[]>([])
 
   const fetchMuzzakiData = async () => {
     const data = await getMuzakki()

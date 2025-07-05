@@ -2,8 +2,7 @@
 
 import React, { useState, useCallback } from 'react'
 import { ArrowUpTrayIcon } from '@heroicons/react/24/outline'
-import * as XLSX from 'xlsx'
-import { uploadJurnal, MuzzakiJurnalUploadData } from '@/api/database'
+import { uploadJurnal, uploadPenyaluran, MuzzakiJurnalUploadData, PenyaluranUploadData } from '@/api/database'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -14,7 +13,7 @@ export function FileUploadModal({ isOpen, onClose, onUploadSuccess }: FileUpload
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [fileName, setFileName] = useState<string>('')
   const [isUploading, setIsUploading] = useState(false)
-  const [kategori, setKategori] = useState('')
+  const [kategori, setKategori] = useState<'penyaluran' | 'perhimpunan' | ''>('')
 
   const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -25,81 +24,64 @@ export function FileUploadModal({ isOpen, onClose, onUploadSuccess }: FileUpload
   }, [])
 
   const handleImport = useCallback(async () => {
-  if (!selectedFile || !kategori) return
+    if (!selectedFile || !kategori) return
 
-  setIsUploading(true)
-  try {
-    const dataBuffer = await selectedFile.arrayBuffer()
+    setIsUploading(true)
+    try {
+      const base64String = await fileToBase64(selectedFile)
+      
+      if (kategori === 'penyaluran') {
+        // Upload sebagai penyaluran
+        const data: PenyaluranUploadData = {
+          attachment_name: fileName,
+          attachment_base64: base64String,
+          jenisJurnal: 'penyaluran'
+        }
 
-    const base64String = btoa(
-      new Uint8Array(dataBuffer).reduce(
-        (data, byte) => data + String.fromCharCode(byte),
-        ''
-      )
-    )
+        const res = await uploadPenyaluran(data)
 
-    const workbook = XLSX.read(dataBuffer, { type: 'array' })
-    const sheetName = workbook.SheetNames[0]
-    const sheet = workbook.Sheets[sheetName]
+        if (res.success) {
+          toast({
+            title: 'Upload penyaluran berhasil',
+            description: `Data penyaluran berhasil diupload (${res.count} record)`,
+          })
+          onUploadSuccess()
+          onClose()
+        } else {
+          throw new Error(res.error || 'Gagal upload data penyaluran')
+        }
+      } else {
+        // Upload sebagai perhimpunan
+        const data: MuzzakiJurnalUploadData = {
+          attachment_name: fileName,
+          attachment_base64: base64String,
+          jenisJurnal: 'perhimpunan'
+        }
 
-    const sheetData: any[][] = XLSX.utils.sheet_to_json(sheet, {
-      header: 1,
-      defval: '',
-    })
+        const res = await uploadJurnal(data)
 
-    const headers = sheetData[0]
-    const rows = sheetData.slice(1)
-
-    const formattedData = rows.map((row) => {
-      const rowObj: any = {}
-      headers.forEach((header: string, idx: number) => {
-        rowObj[header] = row[idx]
-      })
-
-      return {
-        nama: rowObj['Nama Donatur'] || rowObj['nama'] || '',
-        hp: rowObj['No HP'] || rowObj['hp'] || '',
-        jumlah: parseFloat(rowObj['Jumlah']) || 0,
-        kategori,
+        if (res) {
+          toast({
+            title: 'Upload perhimpunan berhasil',
+            description: 'Data perhimpunan berhasil diupload',
+          })
+          onUploadSuccess()
+          onClose()
+        } else {
+          throw new Error('Gagal upload data perhimpunan')
+        }
       }
-    })
-
-    const data: MuzzakiJurnalUploadData = {
-      attachment_name: selectedFile.name,
-      attachment_base64: base64String,
-      jenisJurnal: kategori,
-      data: formattedData,
-    }
-
-    const res = await uploadJurnal(data)
-
-    if (res) {
+    } catch (error) {
+      console.error('Upload failed:', error)
       toast({
-        title: 'Upload berhasil',
-        description: 'Data dari file berhasil diunggah.',
-      })
-      onUploadSuccess()
-      onClose()
-    } else {
-      toast({
-        title: 'Gagal upload',
-        description: 'Terjadi kesalahan saat mengunggah data.',
+        title: 'Upload gagal',
+        description: error instanceof Error ? error.message : 'Terjadi kesalahan saat upload',
         variant: 'destructive',
       })
+    } finally {
+      setIsUploading(false)
     }
-  } catch (error) {
-    console.error('Upload error:', error)
-    toast({
-      title: 'Upload gagal',
-      description: `Terjadi kesalahan saat membaca file: ${error}`,
-      variant: 'destructive',
-    })
-  } finally {
-    setIsUploading(false)
-  }
-}, [selectedFile, kategori, onClose, onUploadSuccess])
-
-
+  }, [selectedFile, fileName, kategori, onClose, onUploadSuccess])
 
   const handleCancelFileSelection = useCallback(() => {
     setSelectedFile(null)
@@ -110,14 +92,14 @@ export function FileUploadModal({ isOpen, onClose, onUploadSuccess }: FileUpload
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md mx-auto w-[calc(100%-2rem)] sm:w-full rounded">
         <DialogHeader>
-          <DialogTitle>Upload File Excel</DialogTitle>
+          <DialogTitle>Upload File</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4 px-2 sm:px-4">
           <div className="flex items-center gap-4">
             <Input
               id="file-upload"
               type="file"
-              accept=".xlsx, .xls"
+              accept=".xlsx, .xls, .csv"
               className="sr-only"
               onChange={handleFileChange}
             />
@@ -129,7 +111,11 @@ export function FileUploadModal({ isOpen, onClose, onUploadSuccess }: FileUpload
               {selectedFile ? selectedFile.name : 'Pilih file'}
             </label>
             {selectedFile && (
-              <Button variant="outline" size="sm" onClick={handleCancelFileSelection}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCancelFileSelection}
+              >
                 Batal
               </Button>
             )}
@@ -148,26 +134,30 @@ export function FileUploadModal({ isOpen, onClose, onUploadSuccess }: FileUpload
           {/* Pilihan Kategori */}
           <div className="flex flex-col gap-2">
             <span className="text-sm font-medium">Kategori</span>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="radio"
-                name="kategori"
-                value="perhimpunan"
-                checked={kategori === 'perhimpunan'}
-                onChange={() => setKategori('perhimpunan')}
-              />
-              Perhimpunan
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="radio"
-                name="kategori"
-                value="penyaluran"
-                checked={kategori === 'penyaluran'}
-                onChange={() => setKategori('penyaluran')}
-              />
-              Penyaluran
-            </label>
+            <div className="flex items-center space-x-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="kategori"
+                  value="perhimpunan"
+                  checked={kategori === 'perhimpunan'}
+                  onChange={() => setKategori('perhimpunan')}
+                  className="h-4 w-4 text-primary focus:ring-primary"
+                />
+                Perhimpunan
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="kategori"
+                  value="penyaluran"
+                  checked={kategori === 'penyaluran'}
+                  onChange={() => setKategori('penyaluran')}
+                  className="h-4 w-4 text-primary focus:ring-primary"
+                />
+                Penyaluran
+              </label>
+            </div>
           </div>
         </div>
 
@@ -180,12 +170,25 @@ export function FileUploadModal({ isOpen, onClose, onUploadSuccess }: FileUpload
             disabled={!selectedFile || isUploading || !kategori}
             className="w-full sm:w-auto"
           >
-            {isUploading ? 'Mengunggah...' : 'Import'}
+            {isUploading ? 'Mengupload...' : 'Upload'}
           </Button>
         </div>
       </DialogContent>
     </Dialog>
   )
+}
+
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      const base64String = result.split(',')[1]
+      resolve(base64String)
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
 }
 
 export default FileUploadModal

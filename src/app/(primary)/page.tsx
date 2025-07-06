@@ -1,5 +1,3 @@
-// File: D:\Semester_6\kepin\new\LazisMU-maintenance_lintang\LazisMU-maintenance_lintang\src\app\(primary)\page.tsx
-
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
@@ -41,11 +39,11 @@ export default function DashboardPage() {
           tanggal: new Date(entry.tanggal),
           phoneNumber: entry.no_hp || "",
           gender: "Unknown",
-          age: 0,
           donationType: entry.zis || "Lainnya",
           category: "Unknown",
           status: "Active",
-          is_repeat: entry.is_repeat === true, // ✅ Tambahkan ini
+          is_repeat: entry.is_repeat === true,
+          occupation: entry.occupation || "Unknown",
         }));
         setProcessedMuzakkiData(allMuzakkiEntries);
       } catch (e) {
@@ -60,17 +58,14 @@ export default function DashboardPage() {
     fetchAndProcessCleaningData();
   }, []);
 
-  // ---- PERBAIKAN LOGIKA UTAMA DI SINI ----
   const statCounts = useMemo(() => {
     const totalUnique = processedMuzakkiData.length;
-
     const newDonors = processedMuzakkiData.filter(
       (item) => item.is_repeat === false
     ).length;
     const repeatDonors = processedMuzakkiData.filter(
       (item) => item.is_repeat === true
     ).length;
-
     return {
       totalUnique,
       new: newDonors,

@@ -133,7 +133,7 @@ export async function POST(request: Request) {
 
         const workbook = new exceljs.Workbook();
         const buffer = Buffer.from(attachment_base64, 'base64');
-        await workbook.xlsx.load(buffer);
+        await workbook.xlsx.load(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength));
 
         const worksheet = workbook.worksheets[0];
         const data = worksheet.getSheetValues();
@@ -172,8 +172,8 @@ export async function POST(request: Request) {
             row_data.push({
                 nama: row[header_index['nama']] || '',
                 no_hp: normalizePhoneNumber(row[header_index['no hp']] || ''),
-                tanggal: parsedDate,
-                tahun: parsedDate.getFullYear(),
+                tanggal: parsedDate ? parsedDate.toISOString() : null,
+                tahun: parsedDate ? parsedDate.getFullYear() : null,
                 zis: '',
                 via: row[header_index['via']] || '',
                 sumber_dana: row[header_index['keterangan']] || '',
@@ -186,9 +186,10 @@ export async function POST(request: Request) {
         const classified_data = classifier.classify(row_data);
 
         const res_jurnal = await Jurnal.create({ name: attachment_name, jenisJurnal }, { transaction });
+        const jurnalId = res_jurnal.getDataValue('id');
 
         const jurnalDataRecords = classified_data.map(row => ({
-            jurnal_id: res_jurnal.id,
+            jurnal_id: jurnalId,
             nama: row.nama,
             no_hp: row.no_hp,
             tanggal: row.tanggal,
@@ -202,13 +203,13 @@ export async function POST(request: Request) {
         }));
 
         await JurnalData.bulkCreate(jurnalDataRecords, { transaction });
-        await moveToCleaning(res_jurnal.id, transaction);
+        await moveToCleaning(res_jurnal.getDataValue('id'), transaction);
 
         await transaction.commit();
 
         return new Response(JSON.stringify({ 
             status: 'success', 
-            data: { id: res_jurnal.id, recordCount: classified_data.length } 
+            data: { id: res_jurnal.getDataValue('id'), recordCount: classified_data.length } 
         }), {
             headers: { 'Content-Type': 'application/json' }
         });
@@ -254,10 +255,11 @@ async function moveToCleaning(jurnalId: string, transaction?: any) {
 
     const grouped: { [no_hp: string]: any[] } = {};
     for (const entry of allData) {
-        const phone = normalizePhoneNumber(entry.no_hp || '');
+        const entryObj = typeof entry.get === 'function' ? entry.get() : entry;
+        const phone = normalizePhoneNumber(entryObj.no_hp || '');
         if (!phone || phone === '62') continue;
         grouped[phone] = grouped[phone] || [];
-        grouped[phone].push(entry);
+        grouped[phone].push(entryObj);
     }
 
     const classifier = new DonationClassifier();

@@ -13,7 +13,6 @@ import MonthFilter from '@/components/common/MonthFilter';
 import Pagination from '@/components/common/Pagination';
 import { JournalEntry } from '@/lib/types';
 import { getUniqueYears } from '@/lib/utils';
-import { ArrowDownAZIcon } from 'lucide-react'; 
 
 export default function JournalPage() {
   const {
@@ -62,9 +61,9 @@ export default function JournalPage() {
     if (!selectedJournal) return [];
     return selectedJournal.JurnalData.filter(data =>
       data.nama.toLowerCase().includes(detailSearchTerm.toLowerCase()) ||
-      data.no_hp.toLowerCase().includes(detailSearchTerm.toLowerCase()) ||
-      data.zis.toLowerCase().includes(detailSearchTerm.toLowerCase()) ||
-      data.via.toLowerCase().includes(detailSearchTerm.toLowerCase()) ||
+      data.no_hp?.toLowerCase().includes(detailSearchTerm.toLowerCase()) ||
+      data.zis?.toLowerCase().includes(detailSearchTerm.toLowerCase()) ||
+      data.via?.toLowerCase().includes(detailSearchTerm.toLowerCase()) ||
       data.tahun.toString().includes(detailSearchTerm.toLowerCase()) ||
       data.jenis_donatur.toLowerCase().includes(detailSearchTerm.toLowerCase())
     );
@@ -159,7 +158,6 @@ export default function JournalPage() {
           {selectedJournal ? (
             <JournalDetailTable
               journal={selectedJournal}
-              entries={paginatedDetailEntries}
               searchTerm={searchTerm}
             />
           ) : (

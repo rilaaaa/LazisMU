@@ -8,7 +8,7 @@ export default function JournalDetailTable({ journal, searchTerm }: JournalDetai
     return <p className="text-gray-500 text-sm px-4">Data jurnal tidak tersedia.</p>;
   }
 
-  const filteredEntries = entries.filter((entry) =>
+  const filteredEntries = entries.filter((entry: { nama: string; }) =>
     entry.nama.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -26,7 +26,7 @@ export default function JournalDetailTable({ journal, searchTerm }: JournalDetai
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
-          {filteredEntries.map((data, index) => (
+          {filteredEntries.map((data: { nama: string | number | bigint | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<React.AwaitedReactNode> | null | undefined; no_hp: string | number | bigint | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<React.AwaitedReactNode> | null | undefined; jenis_donatur: string | number | bigint | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<React.AwaitedReactNode> | null | undefined; sumber_dana: string | number | bigint | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<React.AwaitedReactNode> | null | undefined; nominal: string | number | bigint | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<React.AwaitedReactNode> | null | undefined; tahun: string | number | bigint | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<React.AwaitedReactNode> | null | undefined; }, index: React.Key | null | undefined) => (
             <tr key={index} className="hover:bg-gray-50">
               <td className="px-6 py-4 text-sm text-gray-700">{data.nama}</td>
               <td className="px-6 py-4 text-sm text-gray-700">{data.no_hp}</td>

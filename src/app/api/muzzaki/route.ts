@@ -1,6 +1,6 @@
 "use server";
 
-import { JurnalData, JurnalDataCleaning } from "@/db/db";
+import { JurnalDataCleaning } from "@/db/db";
 import { JurnalDataRow } from "@/lib/types";
 
 export async function GET() {

@@ -1,11 +1,39 @@
 const API_HOST = process.env.NEXT_PUBLIC_API_HOST || '';
 
-// =================================================================
-// HELPER FUNCTION (Tidak diubah)
-// =================================================================
+export type MuzzakiJurnalUploadData = {
+  attachment_name: string;
+  attachment_base64: string;
+  jenisJurnal: string;
+};
+
+export type PenyaluranData = {
+  id?: number;
+  number: string;
+  jenis_penyaluran: string;
+  nominal: number;
+  jurnal_id: number;
+  jemsJurnal?: string;
+};
+
+export interface DashboardPenyaluranData {
+  id: number;
+  tanggal: Date;
+  sumber_dana: string;
+  jenis_penyaluran: string;
+  program: string;
+  penerima_manfaat: string;
+  nominal: number;
+}
+
+export type PenyaluranUploadData = {
+  attachment_name: string;
+  attachment_base64: string;
+  jenisJurnal?: string; 
+};
+
 async function fetchData(endpoint: string, errorMessage: string) {
   try {
-    const res = await fetch(`${API_HOST}${endpoint}`, { cache: 'no-store' }); // Ditambahkan no-store untuk data dinamis
+    const res = await fetch(`${API_HOST}${endpoint}`, { cache: 'no-store' }); 
     if (!res.ok) throw new Error(errorMessage);
     const data = await res.json();
     if (data.status === 'success') {
@@ -17,10 +45,6 @@ async function fetchData(endpoint: string, errorMessage: string) {
     return [];
   }
 }
-
-// =================================================================
-// FUNGSI UNTUK JURNAL & MUZAKKI (Tidak diubah)
-// =================================================================
 
 export async function getMuzakki() {
   return await fetchData('/api/muzzaki', 'Failed to fetch muzzaki data');
@@ -52,12 +76,6 @@ export async function deleteJurnal(id: number) {
   }
 }
 
-export type MuzzakiJurnalUploadData = {
-  attachment_name: string;
-  attachment_base64: string;
-  jenisJurnal: string;
-};
-
 export async function uploadJurnal(data: MuzzakiJurnalUploadData): Promise<boolean> {
   try {
     const res = await fetch(`${API_HOST}/api/jurnal`, {
@@ -82,45 +100,6 @@ export async function getAllJurnalCleaning() {
   return await fetchData('/api/jurnal?cleaning_only=true', 'Failed to fetch all cleaning data');
 }
 
-
-// =================================================================
-// FUNGSI UNTUK PENYALURAN (Bagian yang Ditambahkan & Disesuaikan)
-// =================================================================
-
-// Tipe data ini dipertahankan sesuai kode asli Anda untuk bagian lain dari aplikasi
-export type PenyaluranData = {
-  id?: number;
-  number: string;
-  jenis_penyaluran: string;
-  nominal: number;
-  jurnal_id: number;
-  jemsJurnal?: string;
-};
-
-// Tipe data BARU khusus untuk Dashboard Chart Penyaluran
-// Ini sesuai dengan data yang dikirim dari API /api/penyaluran
-export interface DashboardPenyaluranData {
-  id: number;
-  tanggal: Date;
-  sumber_dana: string;        // e.g., 'Zakat', 'Infaq', 'CSR', 'DSKL'
-  jenis_penyaluran: string;   // e.g., 'Kemanusiaan', 'Pendidikan'
-  program: string;
-  penerima_manfaat: string;
-  nominal: number;
-}
-
-
-export type PenyaluranUploadData = {
-  attachment_name: string;
-  attachment_base64: string;
-  // jenisJurnal tidak relevan untuk upload penyaluran terpisah, bisa dihapus jika tidak dipakai
-  jenisJurnal?: string; 
-};
-
-/**
- * Mengambil semua data penyaluran untuk DASHBOARD CHART.
- * Menggunakan tipe data DashboardPenyaluranData.
- */
 export async function getAllPenyaluran(): Promise<DashboardPenyaluranData[]> {
   try {
     const response = await fetch('/api/penyaluran', {
@@ -139,7 +118,7 @@ export async function getAllPenyaluran(): Promise<DashboardPenyaluranData[]> {
     if (result.status === 'success') {
       return result.data.map((item: any) => ({
         ...item,
-        tanggal: new Date(item.tanggal), // Pastikan tanggal adalah objek Date
+        tanggal: new Date(item.tanggal), 
       }));
     } else {
       throw new Error(result.message || 'Gagal mengambil data dari server.');
@@ -150,17 +129,11 @@ export async function getAllPenyaluran(): Promise<DashboardPenyaluranData[]> {
   }
 }
 
-/**
- * Mengambil data penyaluran berdasarkan ID (sesuai struktur asli Anda)
- */
 export async function getPenyaluranById(id: number): Promise<PenyaluranData | null> {
   const data = await fetchData(`/api/penyaluran?id=${id}`, 'Failed to fetch penyaluran data');
   return Array.isArray(data) && data.length > 0 ? data[0] : null;
 }
 
-/**
- * Mengambil data penyaluran berdasarkan Jurnal ID (sesuai struktur asli Anda)
- */
 export async function getPenyaluranByJurnalId(jurnal_id: number): Promise<PenyaluranData[]> {
   return await fetchData(
     `/api/penyaluran?jurnal_id=${jurnal_id}`,
@@ -168,10 +141,9 @@ export async function getPenyaluranByJurnalId(jurnal_id: number): Promise<Penyal
   );
 }
 
-/**
- * Mengupload data penyaluran dari file Excel (sesuai struktur asli Anda)
- */
-export async function uploadPenyaluran(data: PenyaluranUploadData): Promise<{success: boolean, id?: number, count?: number}> {
+export async function uploadPenyaluran(data: PenyaluranUploadData): Promise<{
+  error: string;success: boolean, id?: number, count?: number
+}> {
   try {
     const res = await fetch(`${API_HOST}/api/penyaluran`, {
       method: 'POST',
@@ -188,23 +160,21 @@ export async function uploadPenyaluran(data: PenyaluranUploadData): Promise<{suc
 
     const resData = await res.json();
     return {
+      error: '',
       success: resData.status === 'success',
       id: resData.data?.id,
       count: resData.data?.count
     };
   } catch (err) {
     console.error('Upload penyaluran error:', err);
-    return { success: false };
+    return { error: '', success: false };
   }
 }
 
-/**
- * Membuat data penyaluran baru (sesuai struktur asli Anda)
- */
 export async function createPenyaluran(data: Omit<PenyaluranData, 'id'>): Promise<boolean> {
   try {
     const res = await fetch(`${API_HOST}/api/penyaluran`, {
-      method: 'POST', // Seharusnya POST untuk create, bukan PUT
+      method: 'POST', 
       headers: {
         'Content-Type': 'application/json',
       },
@@ -220,9 +190,6 @@ export async function createPenyaluran(data: Omit<PenyaluranData, 'id'>): Promis
   }
 }
 
-/**
- * Memperbarui data penyaluran (sesuai struktur asli Anda)
- */
 export async function updatePenyaluran(id: number, data: Partial<PenyaluranData>): Promise<boolean> {
   try {
     const res = await fetch(`${API_HOST}/api/penyaluran?id=${id}`, {
@@ -242,9 +209,6 @@ export async function updatePenyaluran(id: number, data: Partial<PenyaluranData>
   }
 }
 
-/**
- * Menghapus data penyaluran (sesuai struktur asli Anda)
- */
 export async function deletePenyaluran(id: number): Promise<boolean> {
   try {
     const res = await fetch(`${API_HOST}/api/penyaluran?id=${id}`, {

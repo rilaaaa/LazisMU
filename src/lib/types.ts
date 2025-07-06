@@ -1,6 +1,5 @@
 import { ReactNode } from 'react';
 
-// Sidebar related types
 export type SidebarItem = {
   name: string;
   icon: string;
@@ -9,21 +8,18 @@ export type SidebarItem = {
   isActive?: boolean;
 };
 
-// Loyalty Badge related types
 export type LoyaltyBadge = {
   type: 'Kecil Jarang' | 'Besar Jarang' | 'Kecil Sering' | 'Besar Sering';
   count: number;
   image: string;
 };
 
-// File Upload Modal related types
 export type FileUploadModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onUploadSuccess: () => void;
 };
 
-// Filter related types
 export type MonthFilterProps = {
   selectedMonth: number | null;
   handleMonthChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
@@ -37,7 +33,6 @@ export type YearFilterProps = {
   disabled?: boolean;
 };
 
-// Pagination related types
 export type PaginationProps = {
   currentPage: number;
   totalPages: number;
@@ -46,19 +41,16 @@ export type PaginationProps = {
   totalItems: number;
 };
 
-// Search Bar related types
 export type SearchBarProps = {
   searchTerm: string;
   onSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onClearSearch: () => void;
 };
 
-// Chart Section related types
 export type ChartSectionProps = {
   filteredMuzakki: Muzakki[];
 };
 
-// Journal related types
 export type JournalTableProps = {
   entries: JournalEntry[];
   currentPage: number;
@@ -85,6 +77,8 @@ export type JurnalRow = {
 };
 
 export type JurnalDataRow = {
+  nominal: ReactNode;
+  sumber_dana: any;
   id: number;
   nama: string;
   no_hp?: string;
@@ -99,22 +93,18 @@ export interface JournalDetailTableProps {
   searchTerm: string;
 }
 
-// Di file src/lib/types.ts
-
-// Muzakki related types
 export type Muzakki = {
-  // Hapus baris `[x: string]: number;` dari sini
+  gender: string;
+  is_repeat: boolean;
   id: number;
   name: string;
-  nominal: number; // <-- PASTIKAN PROPERTI INI ADA
+  nominal: number;
   phoneNumber: string;
-  gender: string;
-  age: number;
   occupation: string;
   donationType: string;
   donorType: string;
   category: string;
-  source: string; // <-- INI PROPERTI YANG AKAN KITA GUNAKAN
+  source: string;
   status: string;
   year: number;
 };

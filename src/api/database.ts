@@ -84,14 +84,14 @@ async function fetchData(endpoint: string, errorMessage: string) {
     const text = await res.text();
 
     if (!res.ok) {
-      console.error(`❌ ${errorMessage}:`, text);
+      console.error(` ${errorMessage}:`, text);
       throw new Error(`${errorMessage}: ${text}`);
     }
 
     const data = JSON.parse(text);
     return data.data ?? data;
   } catch (err) {
-    console.error('❌ fetchData error:', err);
+    console.error('fetchData error:', err);
     return [];
   }
 }

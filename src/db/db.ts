@@ -133,13 +133,14 @@ export const JurnalDataCleaning = Database.define('JurnalDataCleanings', {
     }
 });
 
-// Hubungan antar tabel
+// relasi antara Jurnal dan JurnalData
 Jurnal.hasMany(JurnalData, { foreignKey: 'jurnal_id' });
 JurnalData.belongsTo(Jurnal, { foreignKey: 'jurnal_id' });
 
-// Optional kalau ingin relasi juga ke tabel cleanings
+// relasi antara Jurnal dan JurnalDataCleaning
 Jurnal.hasMany(JurnalDataCleaning, { foreignKey: 'jurnal_id' });
 JurnalDataCleaning.belongsTo(Jurnal, { foreignKey: 'jurnal_id' });
+
 
 export { Sequelize, DataTypes };
 

@@ -104,12 +104,19 @@ export async function GET(request: Request) {
             headers: { 'Content-Type': 'application/json' }
         });
 
-    } catch (error) {
-        return new Response(JSON.stringify({ status: 'error', message: 'Internal server error' }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-        });
-    }
+    } catch (error: any) {
+    console.error("ERROR GET /api/jurnal:", error);
+
+    return new Response(JSON.stringify({
+        status: 'error',
+        message: 'Internal server error',
+        detail: error?.message || 'Unknown error'
+    }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+    });
+}
+
 }
 
 export async function POST(request: Request) {

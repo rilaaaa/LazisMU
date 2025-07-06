@@ -291,6 +291,8 @@ async function moveToCleaning(jurnalId: string, transaction?: any) {
             jenis_donatur = valid.length === 1 ? 'Calon' : `${c1} ${c2}`;
         }
 
+        const is_repeat = valid.length >= 2; // ✅ ditandai true jika transaksi validnya lebih dari 1
+
         result.push({
             jurnal_id: jurnalId,
             nama: nama || latest.nama || '',
@@ -303,6 +305,7 @@ async function moveToCleaning(jurnalId: string, transaction?: any) {
             nominal: avgNominal,
             jenis_donatur,
             kategori: latest.kategori || 'Tidak Diketahui',
+            is_repeat, // ✅ disimpan di database
             created_at: new Date(),
             updated_at: new Date()
         });

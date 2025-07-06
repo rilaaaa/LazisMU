@@ -10,11 +10,13 @@ import { getAllJurnalCleaning } from "@/api/database";
 import { Muzakki } from "@/lib/types";
 
 const formatNumber = (num: number) => {
-  return new Intl.NumberFormat('id-ID').format(num);
+  return new Intl.NumberFormat("id-ID").format(num);
 };
 
 export default function DashboardPage() {
-  const [processedMuzakkiData, setProcessedMuzakkiData] = useState<Muzakki[]>([]);
+  const [processedMuzakkiData, setProcessedMuzakkiData] = useState<Muzakki[]>(
+    []
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,17 +31,26 @@ export default function DashboardPage() {
           setIsLoading(false);
           return;
         }
-        const allMuzakkiEntries: Muzakki[] = cleaningEntries.map(entry => ({
-          id: entry.id, name: entry.nama,
+        const allMuzakkiEntries: Muzakki[] = cleaningEntries.map((entry) => ({
+          id: entry.id,
+          name: entry.nama,
           nominal: parseFloat(entry.nominal) || 0,
-          source: entry.sumber_dana, donorType: entry.jenis_donatur,
-          year: entry.tahun, tanggal: new Date(entry.tanggal),
-          phoneNumber: entry.no_hp || '', gender: 'Unknown', age: 0,
-          donationType: entry.zis || 'Lainnya', category: 'Unknown', status: 'Active',
+          source: entry.sumber_dana,
+          donorType: entry.jenis_donatur,
+          year: entry.tahun,
+          tanggal: new Date(entry.tanggal),
+          phoneNumber: entry.no_hp || "",
+          gender: "Unknown",
+          age: 0,
+          donationType: entry.zis || "Lainnya",
+          category: "Unknown",
+          status: "Active",
+          is_repeat: entry.is_repeat === true, // ✅ Tambahkan ini
         }));
         setProcessedMuzakkiData(allMuzakkiEntries);
       } catch (e) {
-        const errorMessage = e instanceof Error ? e.message : "Terjadi kesalahan";
+        const errorMessage =
+          e instanceof Error ? e.message : "Terjadi kesalahan";
         console.error("--- FATAL ERROR:", errorMessage);
         setError("Gagal mengambil data dari server.");
       } finally {
@@ -51,34 +62,19 @@ export default function DashboardPage() {
 
   // ---- PERBAIKAN LOGIKA UTAMA DI SINI ----
   const statCounts = useMemo(() => {
-    // 1. Buat peta frekuensi dari seluruh data
-    const phoneFrequencyMap = new Map<string, number>();
-    processedMuzakkiData.forEach(item => {
-      if (item.phoneNumber) {
-        phoneFrequencyMap.set(item.phoneNumber, (phoneFrequencyMap.get(item.phoneNumber) || 0) + 1);
-      }
-    });
+    const totalUnique = processedMuzakkiData.length;
 
-    // 2. Hitung Total, Baru, dan Repeat berdasarkan peta frekuensi
-    const totalUnique = phoneFrequencyMap.size;
-    let newDonors = 0;
-    let repeatDonors = 0;
-
-    phoneFrequencyMap.forEach((count) => {
-      // Jika donatur hanya donasi 1 kali, dia 'Baru'
-      if (count === 1) {
-        newDonors++;
-      } 
-      // Jika donasi lebih dari 1 kali, dia 'Repeat'
-      else if (count > 1) {
-        repeatDonors++;
-      }
-    });
+    const newDonors = processedMuzakkiData.filter(
+      (item) => item.is_repeat === false
+    ).length;
+    const repeatDonors = processedMuzakkiData.filter(
+      (item) => item.is_repeat === true
+    ).length;
 
     return {
       totalUnique,
       new: newDonors,
-      repeat: repeatDonors, // Ini adalah jumlah ORANG yang repeat
+      repeat: repeatDonors,
     };
   }, [processedMuzakkiData]);
 
@@ -89,8 +85,17 @@ export default function DashboardPage() {
         <Notifications />
       </div>
 
-      {isLoading && <div className="text-center py-20 text-gray-500">Memuat data dashboard...</div>}
-      {!isLoading && error && <div className="text-center py-20 text-red-500 bg-red-50 p-4 rounded-lg"><p className="font-bold">Terjadi Error</p><p>{error}</p></div>}
+      {isLoading && (
+        <div className="text-center py-20 text-gray-500">
+          Memuat data dashboard...
+        </div>
+      )}
+      {!isLoading && error && (
+        <div className="text-center py-20 text-red-500 bg-red-50 p-4 rounded-lg">
+          <p className="font-bold">Terjadi Error</p>
+          <p>{error}</p>
+        </div>
+      )}
 
       {!isLoading && !error && (
         <>
@@ -98,25 +103,37 @@ export default function DashboardPage() {
             <div className="bg-white p-6 rounded-lg shadow-md">
               <ChartSection data={processedMuzakkiData} />
             </div>
-            
+
             <div className="bg-white p-4 rounded-lg shadow-md space-y-3 flex flex-col justify-center">
-                <div className="flex justify-between items-center bg-orange-400/80 rounded-lg shadow-sm text-sm">
-                    <div className="bg-white px-4 py-3 rounded-l-lg font-semibold text-gray-700 w-1/3">Total Muzakki</div>
-                    <div className="text-white font-bold px-4 text-center flex-1">{formatNumber(statCounts.totalUnique)} Orang</div>
+              <div className="flex justify-between items-center bg-orange-400/80 rounded-lg shadow-sm text-sm">
+                <div className="bg-white px-4 py-3 rounded-l-lg font-semibold text-gray-700 w-1/3">
+                  Total Muzakki
                 </div>
-                <div className="flex justify-between items-center bg-orange-400/80 rounded-lg shadow-sm text-sm">
-                    <div className="bg-white px-4 py-3 rounded-l-lg font-semibold text-gray-700 w-1/3">Muzakki Baru</div>
-                    <div className="text-white font-bold px-4 text-center flex-1">{formatNumber(statCounts.new)} Orang</div>
+                <div className="text-white font-bold px-4 text-center flex-1">
+                  {formatNumber(statCounts.totalUnique)} Orang
                 </div>
-                <div className="flex justify-between items-center bg-orange-400/80 rounded-lg shadow-sm text-sm">
-                    <div className="bg-white px-4 py-3 rounded-l-lg font-semibold text-gray-700 w-1/3">Repeat Order</div>
-                    <div className="text-white font-bold px-4 text-center flex-1">{formatNumber(statCounts.repeat)} Orang</div>
+              </div>
+              <div className="flex justify-between items-center bg-orange-400/80 rounded-lg shadow-sm text-sm">
+                <div className="bg-white px-4 py-3 rounded-l-lg font-semibold text-gray-700 w-1/3">
+                  Muzakki Baru
                 </div>
+                <div className="text-white font-bold px-4 text-center flex-1">
+                  {formatNumber(statCounts.new)} Orang
+                </div>
+              </div>
+              <div className="flex justify-between items-center bg-orange-400/80 rounded-lg shadow-sm text-sm">
+                <div className="bg-white px-4 py-3 rounded-l-lg font-semibold text-gray-700 w-1/3">
+                  Repeat Order
+                </div>
+                <div className="text-white font-bold px-4 text-center flex-1">
+                  {formatNumber(statCounts.repeat)} Orang
+                </div>
+              </div>
             </div>
           </div>
           <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-700">Penyaluran</h1>
-      </div>
+            <h1 className="text-3xl font-bold text-gray-700">Penyaluran</h1>
+          </div>
           <PenyaluranCharts />
         </>
       )}

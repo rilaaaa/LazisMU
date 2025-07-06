@@ -77,6 +77,8 @@ export type JurnalRow = {
 };
 
 export type JurnalDataRow = {
+  kategori: string;
+  tanggal: any;
   nominal: ReactNode;
   sumber_dana: any;
   id: number;

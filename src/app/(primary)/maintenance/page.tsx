@@ -135,14 +135,25 @@ export default function MaintenancePage() {
         />
       ) : showBlastPerKategoriPage ? (
         <BlastPesanPerKategori
-          kategori="Semua Kategori"
           onBack={() => setShowBlastPerKategoriPage(false)}
-          muzakkiList={muzakkiList}
+          muzakkiList={muzakkiList.map((item) => ({
+            ...item,
+            id: Number(item.id),
+            donorType: item.donorType ?? item.kategori ?? 'Calon',
+          }))}
         />
       ) : showReminderPage ? (
         <ReminderTelatDonasi
           onBack={() => setShowReminderPage(false)}
-          onLoaded={(list) => setTelatDonasiList(list)}
+          onLoaded={(list) =>
+            setTelatDonasiList(
+              list.map((item) => ({
+                ...item,
+                id: String(item.id),
+                totalMuzakki: typeof item.totalMuzakki === 'number' ? item.totalMuzakki : 0,
+              }))
+            )
+          }
         />
       ) : (
         <>

@@ -73,8 +73,7 @@ export const JurnalDataCleaning = Database.define('JurnalDataCleanings', {
     sumber_dana: { type: DataTypes.STRING, allowNull: false },
     nominal: { type: DataTypes.FLOAT, allowNull: false },
     jenis_donatur: { type: DataTypes.STRING, allowNull: false },
-    kategori: { type: DataTypes.STRING, allowNull: false },
-    is_repeat: { type: DataTypes.BOOLEAN, allowNull: false },
+    kategori: { type: DataTypes.STRING, allowNull: false }
 });
 
 // ==========================================================

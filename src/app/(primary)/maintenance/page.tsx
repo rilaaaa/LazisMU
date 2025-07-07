@@ -10,13 +10,12 @@ import ReminderTelatDonasi from '@/components/maintenance/ReminderTelatDonasi';
 import Notifications from '@/components/common/Notifications';
 
 interface Muzzaki {
-  id: string;
+  id: string | number;
   name: string;
   phoneNumber: string;
-  donorType?: string;
+  donorType: string;
   kategori?: string;
   transactions?: { date: string; amount: number }[];
-  totalMuzakki: number;
 }
 
 export default function MaintenancePage() {
@@ -55,12 +54,11 @@ export default function MaintenancePage() {
         }
 
         const validatedData = muzakkiData.map((item) => ({
-          id: item.id || '',
+          id: typeof item.id === 'string' ? parseInt(item.id, 10) : item.id ?? 0,
           name: item.name || '',
           phoneNumber: item.phoneNumber || '',
-          donorType: item.donorType || item.kategori || 'Calon',
+          donorType: item.donorType ?? item.kategori ?? 'Calon',
           transactions: item.transactions || [],
-          totalMuzakki: typeof item.totalMuzakki === 'number' ? item.totalMuzakki : 0,
         }));
 
         setMuzakkiList(validatedData);
@@ -138,8 +136,7 @@ export default function MaintenancePage() {
           onBack={() => setShowBlastPerKategoriPage(false)}
           muzakkiList={muzakkiList.map((item) => ({
             ...item,
-            id: Number(item.id),
-            donorType: item.donorType ?? item.kategori ?? 'Calon',
+            id: typeof item.id === 'string' ? parseInt(item.id, 10) : item.id,
           }))}
         />
       ) : showReminderPage ? (
@@ -149,8 +146,7 @@ export default function MaintenancePage() {
             setTelatDonasiList(
               list.map((item) => ({
                 ...item,
-                id: String(item.id),
-                totalMuzakki: typeof item.totalMuzakki === 'number' ? item.totalMuzakki : 0,
+                donorType: item.donorType ?? item.kategori ?? 'Calon',
               }))
             )
           }
@@ -243,7 +239,7 @@ export default function MaintenancePage() {
                         <td className="p-4 border-r font-medium text-gray-800">{item.name || '-'}</td>
                         <td className="p-4 border-r">{item.phoneNumber || '-'}</td>
                         <td className="p-4">
-                          {activeInputId === item.id ? (
+                          {activeInputId === String(item.id) ? (
                             <div className="space-y-2">
                               <textarea
                                 value={manualMessages[item.id] || ''}
@@ -264,7 +260,7 @@ export default function MaintenancePage() {
                           ) : (
                             <Button
                               size="sm"
-                              onClick={() => setActiveInputId(item.id)}
+                              onClick={() => setActiveInputId(String(item.id))}
                               className="bg-orange-500 text-white hover:bg-orange-600 rounded-md px-4"
                             >
                               Kirim

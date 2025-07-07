@@ -4,6 +4,12 @@ export type MuzzakiJurnalUploadData = {
   attachment_name: string;
   attachment_base64: string;
   jenisJurnal: string;
+  data?: {
+    nama: string;
+    hp: string;
+    jumlah: number;
+    kategori: string;
+  }[];
 };
 
 export type PenyaluranData = {

@@ -12,7 +12,8 @@ interface DonationHistory {
 }
 
 interface Muzakki {
-  totalMuzakki: any;
+  kategori: any;
+  donorType: any;
   id: string | number;
   name: string;
   phoneNumber: string;
@@ -57,6 +58,7 @@ export default function ReminderTelatDonasi({ onBack, onLoaded }: Props) {
         const res = await fetch('/api/muzzaki');
         const json = await res.json();
         const raw = json?.data || [];
+        console.log("Data dari API:", raw);
 
         const final: Muzakki[] = raw.map((d: any) => {
           const history = (d.riwayat || []).map((r: any) => {
@@ -94,9 +96,12 @@ export default function ReminderTelatDonasi({ onBack, onLoaded }: Props) {
           };
         }).filter(Boolean);
 
+        console.log("Final muzakki list:", final);
+
         setMuzakkiList(final);
         if (onLoaded) onLoaded(final);
       } catch (e) {
+        console.error('Gagal mengambil data:', e);
         setMuzakkiList([]);
         if (onLoaded) onLoaded([]);
       }

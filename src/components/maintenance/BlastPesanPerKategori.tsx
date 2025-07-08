@@ -164,7 +164,7 @@ export default function BlastPesanPerKategori({ onBack, muzakkiList }: Props) {
 
       <div className="border-2 border-gray-300 rounded-lg p-4 mb-6">
         <Textarea
-          placeholder="Tulis pesan di sini, gunakan {{nama}} untuk personalisasi..."
+          placeholder="Tulis pesan di sini, gunakan {{nama}} untuk personalisasi ...."
           value={pesan}
           onChange={(e) => setPesan(e.target.value)}
           className="h-40"

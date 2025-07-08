@@ -40,11 +40,34 @@ export default function ReminderTelatDonasi({ onBack, onLoaded }: Props) {
   const today = new Date();
 
   const checkConsistent = (history: DonationHistory[]) => {
-    if (history.length < 1) return { isValid: false, averageDay: 0 }; // Ubah minimal jadi 1
-    const sorted = [...history].sort((a, b) => +new Date(b.date) - +new Date(a.date)).slice(0, 3);
-    const days = sorted.map(d => new Date(d.date).getDate());
-    const averageDay = Math.round(days.reduce((a, b) => a + b, 0) / days.length);
-    return { isValid: true, averageDay };
+    if (history.length < 3) return { isValid: false, averageDay: 0 };
+
+    const sorted = [...history].sort((a, b) => +new Date(b.date) - +new Date(a.date));
+    const monthly = new Map<number, DonationHistory>();
+
+    for (const item of sorted) {
+      const date = new Date(item.date);
+      const key = date.getFullYear() * 100 + date.getMonth();
+      if (!monthly.has(key)) monthly.set(key, item);
+      if (monthly.size === 3) break;
+    }
+
+    const records = Array.from(monthly.values());
+    if (records.length < 3) return { isValid: false, averageDay: 0 };
+
+    const [d1, d2, d3] = records.map(r => new Date(r.date));
+
+    const isConsecutive =
+      d1.getMonth() - d2.getMonth() === 1 &&
+      d2.getMonth() - d3.getMonth() === 1 &&
+      d1.getFullYear() === d2.getFullYear() &&
+      d2.getFullYear() === d3.getFullYear();
+
+    const sameDay = d1.getDate() === d2.getDate() && d2.getDate() === d3.getDate();
+
+    if (!isConsecutive || !sameDay) return { isValid: false, averageDay: 0 };
+
+    return { isValid: true, averageDay: d1.getDate() };
   };
 
   const calculateDaysLate = (avgDay: number) => {
@@ -58,7 +81,6 @@ export default function ReminderTelatDonasi({ onBack, onLoaded }: Props) {
         const res = await fetch('/api/muzzaki');
         const json = await res.json();
         const raw = json?.data || [];
-        console.log("Data dari API:", raw);
 
         const final: Muzakki[] = raw.map((d: any) => {
           const history = (d.riwayat || []).map((r: any) => {
@@ -72,12 +94,12 @@ export default function ReminderTelatDonasi({ onBack, onLoaded }: Props) {
           const { isValid, averageDay } = checkConsistent(history);
           if (!isValid) return null;
 
-          const thisMonth = history.some((h: { date: string | number | Date; }) => {
+          const hasThisMonthDonation = history.some((h) => {
             const dt = new Date(h.date);
             return dt.getMonth() === today.getMonth() && dt.getFullYear() === today.getFullYear();
           });
 
-          if (thisMonth) return null;
+          if (hasThisMonthDonation) return null;
 
           const daysLate = calculateDaysLate(averageDay);
           if (daysLate <= 0) return null;
@@ -95,8 +117,6 @@ export default function ReminderTelatDonasi({ onBack, onLoaded }: Props) {
             averageDonationDay: averageDay,
           };
         }).filter(Boolean);
-
-        console.log("Final muzakki list:", final);
 
         setMuzakkiList(final);
         if (onLoaded) onLoaded(final);
@@ -143,10 +163,7 @@ export default function ReminderTelatDonasi({ onBack, onLoaded }: Props) {
       no: m.phoneNumber.startsWith('62') ? m.phoneNumber : `62${m.phoneNumber.replace(/^0+/, '')}`,
     }));
 
-    const payload = {
-      recipients,
-      template: pesan,
-    };
+    const payload = { recipients, template: pesan };
 
     try {
       const res = await fetch('/api/whatsapp', {
@@ -162,7 +179,6 @@ export default function ReminderTelatDonasi({ onBack, onLoaded }: Props) {
         return;
       }
 
-      const result = await res.json();
       alert(`Pesan berhasil dikirim ke ${selectedMuzakki.length} muzakki.`);
     } catch (error) {
       console.error('Kesalahan saat mengirim:', error);
@@ -182,7 +198,6 @@ export default function ReminderTelatDonasi({ onBack, onLoaded }: Props) {
 
     const personalizedMessage = pesan
       .replace(/{{nama}}/gi, m.name)
-      .replace(/{{tanggal}}/gi, m.averageDonationDay.toString());
 
     const payload = {
       recipients: [{ name: m.name, no: formattedNumber }],
@@ -216,7 +231,7 @@ export default function ReminderTelatDonasi({ onBack, onLoaded }: Props) {
 
       <div className="border-2 border-gray-300 rounded-lg p-4 mb-6">
         <Textarea
-          placeholder="Tulis pesan di sini, gunakan {{nama}}..."
+          placeholder="Tulis pesan di sini, gunakan {{nama}} untuk personalisasi ...."
           value={pesan}
           onChange={(e) => setPesan(e.target.value)}
           className="w-full h-40"

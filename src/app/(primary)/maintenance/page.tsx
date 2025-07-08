@@ -33,45 +33,62 @@ export default function MaintenancePage() {
   const router = useRouter();
 
   useEffect(() => {
-    const fetchMuzakki = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  const fetchMuzakki = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        const res = await fetch('/api/muzzaki');
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        const data = await res.json();
+      const res = await fetch('/api/muzzaki');
+      const data = await res.json();
 
-        let muzakkiData: Muzzaki[] = [];
-        if (Array.isArray(data)) {
-          muzakkiData = data;
-        } else if (Array.isArray(data.data)) {
-          muzakkiData = data.data;
-        } else if (data.data && typeof data.data === 'object') {
-          muzakkiData = Object.values(data.data);
-        } else {
-          throw new Error('Format data tidak dikenali');
-        }
+      const muzakkiData = Array.isArray(data?.data) ? data.data : [];
 
-        const validatedData = muzakkiData.map((item) => ({
-          id: typeof item.id === 'string' ? parseInt(item.id, 10) : item.id ?? 0,
-          name: item.name || '',
-          phoneNumber: item.phoneNumber || '',
-          donorType: item.donorType ?? item.kategori ?? 'Calon',
-          transactions: item.transactions || [],
-        }));
+      const validatedData = muzakkiData.map((item) => ({
+        id: item.id || item.phoneNumber || '',
+        name: item.name || '',
+        phoneNumber: item.phoneNumber || '',
+        donorType: item.donorType ?? item.kategori ?? 'Calon',
+        transactions: item.transactions || item.riwayat || [],
+      }));
 
-        setMuzakkiList(validatedData);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Terjadi kesalahan');
-        setMuzakkiList([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+      // Cek siapa saja yang telat donasi
+      const telat = validatedData.filter((item) => {
+        const trx = item.transactions
+          .map((t: any) => new Date(t.date || t.tanggal))
+          .filter((d: Date) => !isNaN(d.getTime()))
+          .sort((a, b) => +b - +a);
 
-    fetchMuzakki();
-  }, []);
+        if (trx.length < 3) return false;
+
+        const [a, b, c] = trx;
+        const sameDate = a.getDate() === b.getDate() && b.getDate() === c.getDate();
+        const consecutiveMonth =
+          a.getMonth() - b.getMonth() === 1 &&
+          b.getMonth() - c.getMonth() === 1 &&
+          a.getFullYear() === b.getFullYear() &&
+          b.getFullYear() === c.getFullYear();
+
+        const thisMonth = trx.some((d) => {
+          const now = new Date();
+          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        });
+
+        return sameDate && consecutiveMonth && !thisMonth;
+      });
+
+      setMuzakkiList(validatedData);
+      setTelatDonasiList(telat);
+    } catch (err) {
+      console.error(err);
+      setError('Gagal mengambil data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchMuzakki();
+}, []);
+
 
   const filteredData = muzakkiList.filter(
     (item) =>

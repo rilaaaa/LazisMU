@@ -17,7 +17,7 @@ interface Props {
 }
 
 const BlastPesanSemuaMuzakki: React.FC<Props> = ({ onBack, totalMuzakki }) => {
-  const [message, setMessage] = useState(''); // ✅ dikosongkan
+  const [message, setMessage] = useState(''); 
   const [isSent, setIsSent] = useState(false);
   const [muzakkiList, setMuzakkiList] = useState<Muzakki[]>([]);
 
@@ -106,7 +106,7 @@ const BlastPesanSemuaMuzakki: React.FC<Props> = ({ onBack, totalMuzakki }) => {
 
       <div className="border-2 border-gray-200 p-6 rounded-xl bg-white">
         <Textarea
-          placeholder="Tulis pesan di sini, gunakan {{nama}} untuk personalisasi..."
+          placeholder="Tulis pesan di sini, gunakan {{nama}} untuk personalisasi ...."
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           disabled={isSent}
